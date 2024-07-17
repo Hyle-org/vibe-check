@@ -4,11 +4,16 @@ import Logo from "./assets/Hyle_logo.svg";
 import { SmileTokenBalances } from "./SmileTokenIndexer";
 import { getWebAuthnIdentity } from "./webauthn";
 
+const identity = getWebAuthnIdentity();
+
 const sortedBalances = computed(() => {
-    return Object.entries(SmileTokenBalances.value).sort((a, b) => b[1] - a[1]);
+    return Object.entries(SmileTokenBalances.value)
+        .filter(b => b[0] !== identity)
+        .sort((a, b) => b[1] - a[1]);
 });
 
-const identity = getWebAuthnIdentity();
+const identityBalance = Object.entries(SmileTokenBalances.value).find(([balanceId, _]) => balanceId === identity);
+
 
 </script>
 
@@ -18,6 +23,7 @@ const identity = getWebAuthnIdentity();
         <h3 class="text-center my-4"><img :src="Logo" alt="Hylé logo" class="h-10 m-auto"></img></h3>
         <strong id="address">{{ identity }}</strong>
         <div>
+            <p v-if="!!identityBalance" :key="identityBalance[0]"><strong>{{ identityBalance[0] }}: {{ identityBalance[1] }}</strong></p>
             <p v-for="balance in sortedBalances" :key="balance[0]">{{ balance[0] }}: {{ balance[1] }}</p>
         </div>
     </div>
