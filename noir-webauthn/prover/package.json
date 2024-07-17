@@ -1,0 +1,13 @@
+{
+  "name": "webauthn",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {},
+  "devDependencies": {},
+  "dependencies": {
+    "@noir-lang/backend_barretenberg": "^0.30.0",
+    "@noir-lang/noir_js": "^0.30.0",
+    "dotenv": "^16.4.5"
+  }
+}
