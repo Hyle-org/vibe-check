@@ -406,7 +406,7 @@ const vTriggerScroll = {
                                     <p class="text-center text-sm font-mono">You've earned 100 devnet Hylé. Good vibes!
                                     </p>
                                     <p class="text-center text-sm font-mono my-4">Check it out on
-                                        <a>
+                                        <a href="https://hyleou.hyle.eu">
                                             <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
                                         </a><br>or tweet about it
                                         !
