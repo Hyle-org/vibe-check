@@ -1,0 +1,15 @@
+{
+  "name": "cairo-verifier",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "cairo_verifier_bg.wasm",
+    "cairo_verifier.js",
+    "cairo_verifier.d.ts"
+  ],
+  "main": "cairo_verifier.js",
+  "types": "cairo_verifier.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
