@@ -64,3 +64,5 @@ bun run dev
 S/O to Lambdaclass team for their [CairoVM](https://github.com/lambdaclass/cairo-vm/tree/main/cairo1-run) and [Cairo prover](https://github.com/lambdaclass/lambdaworks/tree/main/provers/cairo).
 
 S/O to [Aztec](https://github.com/AztecProtocol/aztec-packages) for Noir and tooling around it.
+
+S/O to [Giza](https://www.gizatech.xyz/) for help and support around zmML and Cairo.
