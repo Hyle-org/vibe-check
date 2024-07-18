@@ -4,11 +4,15 @@ import Logo from "./assets/Hyle_logo.svg";
 import { SmileTokenBalances } from "./SmileTokenIndexer";
 import { getWebAuthnIdentity } from "./webauthn";
 
+let score_max: number;
 const identity = getWebAuthnIdentity();
 
 const sortedBalances = computed(() => {
-    return Object.entries(SmileTokenBalances.value)
-        .sort((a, b) => b[1] - a[1]);
+    let temp = Object.entries(SmileTokenBalances.value)
+        .sort((a, b) => b[1] - a[1])
+        .filter((balance) => balance[0] != "faucet");
+    score_max = Math.max(...temp.map((elem) => elem[1]));;
+    return temp
 });
 
 const progress_bar = (score: number, max: number, nb_bars = 15) => {
@@ -38,7 +42,7 @@ const progress_bar = (score: number, max: number, nb_bars = 15) => {
         <h1 class="leaderboard_title">Leaderboard</h1>
         <hr />
         <ul class="results">
-            <li v-for="(balance, index) in sortedBalances" :key="balance[0]" :class="balance[0] === identity ? 'identity' : 'else'"><strong>#{{ index + 1 }}</strong> {{ balance[0] }} - {{ balance[1] }} {{ progress_bar(balance[1], 200) }}</li>
+            <li v-for="(balance, index) in sortedBalances" :key="balance[0]" :class="balance[0] === identity ? 'identity' : 'else'"><strong>#{{ index + 1 }}</strong> {{ balance[0] }} - {{ balance[1] }} {{ progress_bar(balance[1], score_max) }}</li>
         </ul>
     </div>
 </template>
