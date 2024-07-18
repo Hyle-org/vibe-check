@@ -5,7 +5,9 @@ import { SmileTokenBalances } from "./SmileTokenIndexer";
 import { getWebAuthnIdentity } from "./webauthn";
 
 let score_max: number;
-const identity = getWebAuthnIdentity();
+const identity = computed(() => {
+    return getWebAuthnIdentity()
+});
 
 const sortedBalances = computed(() => {
     let temp = Object.entries(SmileTokenBalances.value)
