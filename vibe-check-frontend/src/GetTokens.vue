@@ -324,9 +324,9 @@ const vTriggerScroll = {
     <div class="container m-auto">
         <h1 class="text-center my-4">Vibe Check</h1>
         <h3 class="text-center my-4"><img :src="Logo" alt="Hylé logo" class="h-10 m-auto"></img></h3>
-        <div class="text-center my-4">
+        <div class="text-center my-4 explainer">
             <p class="my-4">Vibe Check is a zkML & WebAuthn Powered zkApp asserting a user has smiled and awarding test tokens on Hylé!</p>
-            <p class="my-4">This is a test project! Don't take it too seriously. Code can be found on our <a href="https://github.com/Hyle-org/vibe-check">github</a></p>
+            <p class="my-4 smaller">This is a test project! Don't take it too seriously. Code can be found on our <a href="https://github.com/Hyle-org/vibe-check">github</a></p>
         </div>
         <template v-if="screen == 'start'">
             <div class="flex flex-col justify-center h-[400px] max-h-[50vh] max-w-[50rem] m-auto img-background p-10">
@@ -347,8 +347,8 @@ const vTriggerScroll = {
                     Smile & get tokens
                 </button>
             </div>
-            <div class="text-center my-4">
-                <p>All code execution happens client-side and proofs are generated using <a href=https://noir-lang.org/>Noir</a>, <a href="https://www.cairo-lang.org">Cairo</a> and <a href="https://www.gizatech.xyz">Giza</a>.</p>
+            <div class="text-center my-4 explainer">
+                <p class="smaller">All code execution happens client-side and proofs are generated using <a href=https://noir-lang.org/>Noir</a>, <a href="https://www.cairo-lang.org">Cairo</a> and <a href="https://www.gizatech.xyz">Giza</a>.</p>
             </div>
         </template>
         <template v-else>
@@ -452,6 +452,16 @@ const vTriggerScroll = {
 
 
 <style scoped>
+.explainer {
+    margin: 2.5em;
+}
+.explainer > p {
+    font-family: Anton, sans-serif;
+}
+.explainer > p.smaller {
+    font-size: 1em;
+}
+
 .img-background {
     background-image: url("./assets/image_satellite.jpg");
     background-size: cover;
