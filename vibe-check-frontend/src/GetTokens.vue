@@ -12,6 +12,8 @@ import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
 import LeaderBoard from "./LeaderBoard.vue";
 
+import { HyleouApi } from "./api/hyleou";
+
 // These are references to HTML elements
 const canvasOutput = ref<HTMLCanvasElement | null>(null);
 const videoFeed = ref<HTMLVideoElement | null>(null);
@@ -36,6 +38,7 @@ const status = ref<string>("start");
 const screen = ref<string>("start");
 const error = ref<string | null>(null);
 const identityRef = ref<string | undefined>();
+const txHash = ref<string | null>(null);
 
 // Match screen to status
 watchEffect(() => {
@@ -299,6 +302,7 @@ const signAndSend = async () => {
         const txStatus = await checkTxStatus(resp.transactionHash);
         if (txStatus.status === "success") {
             status.value = "tx_success";
+            txHash.value = resp.transactionHash;
         } else {
             status.value = "tx_failure";
             error.value = txStatus.error || "Unknown error";
@@ -410,7 +414,7 @@ const vTriggerScroll = {
                                     <p class="text-center text-sm font-mono">You've earned 100 devnet Hylé. Good vibes!
                                     </p>
                                     <p class="text-center text-sm font-mono my-4">Check it out on
-                                        <a href="https://hyleou.hyle.eu">
+                                        <a :href="HyleouApi.transactionDetails(txHash)">
                                             <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
                                         </a><br>or tweet about it
                                         !
