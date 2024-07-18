@@ -35,6 +35,7 @@ const erc20PromiseDone = ref<boolean>(false);
 const status = ref<string>("start");
 const screen = ref<string>("start");
 const error = ref<string | null>(null);
+const identityRef = ref<string | undefined>();
 
 // Match screen to status
 watchEffect(() => {
@@ -81,6 +82,7 @@ const doWebAuthn = async () => {
         status.value = "authenticating";
         try {
             await registerWebAuthnIfNeeded();
+            identityRef.value = getWebAuthnIdentity();
             status.value = "authenticated";
         } catch (e) {
             console.error(e);
@@ -256,7 +258,7 @@ const signAndSend = async () => {
     smilePromiseDone.value = false;
     erc20PromiseDone.value = false;
     status.value = "proving";
-    const identity = getWebAuthnIdentity();
+    const identity = identityRef.value;
 
     try {
         // Start locally proving that we are who we claim to be by signing the transaction hash
@@ -437,7 +439,7 @@ const vTriggerScroll = {
             </div>
         </template>
         
-        <LeaderBoard />
+        <LeaderBoard :identity="identityRef"/>
     </div>
     
 </template>

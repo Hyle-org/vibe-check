@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import Logo from "./assets/Hyle_logo.svg";
 import { SmileTokenBalances } from "./SmileTokenIndexer";
-import { getWebAuthnIdentity } from "./webauthn";
+
+defineProps<{
+    identity?: string
+}>()
 
 let score_max: number;
-const identity = computed(() => {
-    return getWebAuthnIdentity()
-});
 
 const sortedBalances = computed(() => {
     let temp = Object.entries(SmileTokenBalances.value)
@@ -37,12 +36,12 @@ const progress_bar = (score: number, max: number, nb_bars = 15) => {
 
 <template>
     <div class="container m-auto">
-        <strong id="address" class="identity">{{ identity }}</strong>
+        <strong id="address" class="identity" v-if="identity">{{ identity }}</strong>
         <hr />
         <h1 class="leaderboard_title">Leaderboard</h1>
         <hr />
         <ul class="results">
-            <li v-for="(balance, index) in sortedBalances" :key="balance[0]" :class="balance[0] === identity ? 'identity' : 'else'"><strong>#{{ index + 1 }}</strong> {{ balance[0] }} - {{ balance[1] }} {{ progress_bar(balance[1], score_max) }}</li>
+            <li v-for="(balance, index) in sortedBalances" :key="balance[0] + '-' + index" :class="balance[0] === identity ? 'identity' : 'else'"><strong>#{{ index + 1 }}</strong> {{ balance[0] }} - {{ balance[1] }} {{ progress_bar(balance[1], score_max) }}</li>
         </ul>
     </div>
 </template>
