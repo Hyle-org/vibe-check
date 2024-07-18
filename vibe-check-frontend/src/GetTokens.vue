@@ -10,6 +10,7 @@ import { getBalances } from "./SmileTokenIndexer";
 import Logo from "./assets/Hyle_logo.svg";
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
+import LeaderBoard from "./LeaderBoard.vue";
 
 // These are references to HTML elements
 const canvasOutput = ref<HTMLCanvasElement | null>(null);
@@ -322,13 +323,6 @@ const vTriggerScroll = {
         <h1 class="text-center my-4">Vibe Check</h1>
         <h3 class="text-center my-4"><img :src="Logo" alt="Hylé logo" class="h-10 m-auto"></img></h3>
 
-        <div class="flex justify-center my-8">
-            <button>
-                <RouterLink :to="{ name: 'leaderboard' }" target="_blank">
-                    Leaderboard
-                </RouterLink>
-            </button>
-        </div>
         <template v-if="screen == 'start'">
             <div class="flex flex-col justify-center h-[400px] max-h-[50vh] max-w-[50rem] m-auto img-background p-10">
                 <div v-if="status === 'pre-authenticating' || status === 'authenticating'"
@@ -442,8 +436,12 @@ const vTriggerScroll = {
                 </div>
             </div>
         </template>
+        
+        <LeaderBoard />
     </div>
+    
 </template>
+
 
 <style scoped>
 .img-background {

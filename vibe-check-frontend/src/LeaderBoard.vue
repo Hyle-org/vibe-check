@@ -35,8 +35,6 @@ const progress_bar = (score: number, max: number, nb_bars = 15) => {
 
 <template>
     <div class="container m-auto">
-        <h1 class="text-center my-4">Vibe Check</h1>
-        <h3 class="text-center my-4"><img :src="Logo" alt="Hylé logo" class="h-10 m-auto"></img></h3>
         <strong id="address" class="identity">{{ identity }}</strong>
         <hr />
         <h1 class="leaderboard_title">Leaderboard</h1>
