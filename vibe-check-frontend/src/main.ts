@@ -7,7 +7,7 @@ import LeaderBoard from "./LeaderBoard.vue";
 
 const routes = [
   { path: '/', component: GetTokens },
-  { path: '/leaderboard', component: LeaderBoard },
+  { path: '/leaderboard', component: LeaderBoard, name: "leaderboard" },
 ]
 
 const router = createRouter({
