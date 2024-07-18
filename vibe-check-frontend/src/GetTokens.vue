@@ -10,6 +10,7 @@ import { getBalances } from "./SmileTokenIndexer";
 import Logo from "./assets/Hyle_logo.svg";
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
+import LeaderBoard from "./LeaderBoard.vue";
 
 // These are references to HTML elements
 const canvasOutput = ref<HTMLCanvasElement | null>(null);
@@ -34,6 +35,7 @@ const erc20PromiseDone = ref<boolean>(false);
 const status = ref<string>("start");
 const screen = ref<string>("start");
 const error = ref<string | null>(null);
+const identityRef = ref<string | undefined>();
 
 // Match screen to status
 watchEffect(() => {
@@ -80,6 +82,7 @@ const doWebAuthn = async () => {
         status.value = "authenticating";
         try {
             await registerWebAuthnIfNeeded();
+            identityRef.value = getWebAuthnIdentity();
             status.value = "authenticated";
         } catch (e) {
             console.error(e);
@@ -255,7 +258,7 @@ const signAndSend = async () => {
     smilePromiseDone.value = false;
     erc20PromiseDone.value = false;
     status.value = "proving";
-    const identity = getWebAuthnIdentity();
+    const identity = identityRef.value;
 
     try {
         // Start locally proving that we are who we claim to be by signing the transaction hash
@@ -322,13 +325,6 @@ const vTriggerScroll = {
         <h1 class="text-center my-4">Vibe Check</h1>
         <h3 class="text-center my-4"><img :src="Logo" alt="Hylé logo" class="h-10 m-auto"></img></h3>
 
-        <div class="flex justify-center my-8">
-            <button>
-                <RouterLink :to="{ name: 'leaderboard' }" target="_blank">
-                    Leaderboard
-                </RouterLink>
-            </button>
-        </div>
         <template v-if="screen == 'start'">
             <div class="flex flex-col justify-center h-[400px] max-h-[50vh] max-w-[50rem] m-auto img-background p-10">
                 <div v-if="status === 'pre-authenticating' || status === 'authenticating'"
@@ -442,8 +438,12 @@ const vTriggerScroll = {
                 </div>
             </div>
         </template>
+        
+        <LeaderBoard :identity="identityRef"/>
     </div>
+    
 </template>
+
 
 <style scoped>
 .img-background {

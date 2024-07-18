@@ -175,14 +175,18 @@ export const signChallengeWithWebAuthn = async (challenge: Uint8Array) => {
 };
 
 export const getWebAuthnIdentity = () => {
-    const locallyStoredId = window.localStorage.getItem("credentials")!;
-    let pubKey = Uint8Array.from(JSON.parse(locallyStoredId).public_key as Array<number>);
-    var [pub_key_x, pub_key_y] = extractPublicKeyCoordinates(pubKey);
+    try {
+        const locallyStoredId = window.localStorage.getItem("credentials")!;
+        let pubKey = Uint8Array.from(JSON.parse(locallyStoredId).public_key as Array<number>);
+        var [pub_key_x, pub_key_y] = extractPublicKeyCoordinates(pubKey);
 
-    const publicKey = Buffer.concat([Buffer.from(pub_key_x), Buffer.from(pub_key_y)]);
-    const hash = crypto.createHash("sha256").update(publicKey).digest();
-    const result = hash.slice(-20);
-    const hexResult = Array.from(result).map((byte) => byte.toString(16).padStart(2, "0"));
+        const publicKey = Buffer.concat([Buffer.from(pub_key_x), Buffer.from(pub_key_y)]);
+        const hash = crypto.createHash("sha256").update(publicKey).digest();
+        const result = hash.slice(-20);
+        const hexResult = Array.from(result).map((byte) => byte.toString(16).padStart(2, "0"));
 
-    return hexResult.join("") + ".ecdsa_secp256r1";
+        return hexResult.join("") + ".ecdsa_secp256r1";
+    } catch (error) {
+    console.log("Identity not loaded yet");
+    }
 };
