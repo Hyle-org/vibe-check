@@ -110,8 +110,26 @@ const activateCamera = async () => {
             const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight }
             faceApi.matchDimensions(canvasOutput.value!, displaySize)
             lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
-            const resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
-            faceApi.draw.drawDetections(canvasOutput.value!, resizedDetections);
+            // We shall only process detection if at least one face has been detected
+            if (lastDetections.value.length > 0) {
+                var score =  lastDetections.value[0].score.toFixed(2);
+                var resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
+
+                var canvas = canvasOutput.value!;
+                var context = canvas.getContext("2d")!;
+
+                const box = {
+                    x: resizedDetections[0].box.left,
+                    y: resizedDetections[0].box.top,
+                    width: resizedDetections[0].box.width,
+                    height: resizedDetections[0].box.height,
+                };
+                faceApi.draw.drawDetections(canvas, box);
+                context.scale(-1, 1);
+                context.fillStyle = "blue";
+                context.font = "bold 16px Arial";
+                context.fillText(score, - canvas.width * 0.1, canvas.height * 0.1);
+            }
         }, 1000);
     } catch (e) {
         console.error(e);
