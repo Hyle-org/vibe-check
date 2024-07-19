@@ -107,8 +107,14 @@ const activateCamera = async () => {
             const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight }
             faceApi.matchDimensions(canvasOutput.value!, displaySize)
             lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
-            const resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
-            faceApi.draw.drawDetections(canvasOutput.value!, resizedDetections);
+            var resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
+            const box = {
+                x: resizedDetections[0].box.left,
+                y: resizedDetections[0].box.top,
+                width: resizedDetections[0].box.width,
+                height: resizedDetections[0].box.height,
+            };
+            faceApi.draw.drawDetections(canvasOutput.value!, box);
         }, 1000);
     } catch (e) {
         console.error(e);
