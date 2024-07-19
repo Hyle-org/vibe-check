@@ -107,6 +107,7 @@ const activateCamera = async () => {
             const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight }
             faceApi.matchDimensions(canvasOutput.value!, displaySize)
             lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
+            // We shall only process detection if at least one face has been detected
             if (lastDetections.value.length > 0) {
                 var score =  lastDetections.value[0].score.toFixed(2);
                 var resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
