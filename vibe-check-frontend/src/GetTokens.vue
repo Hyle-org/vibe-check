@@ -11,6 +11,7 @@ import Logo from "./assets/Hyle_logo.svg";
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
 import LeaderBoard from "./LeaderBoard.vue";
+import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
 
@@ -326,8 +327,10 @@ const vTriggerScroll = {
 
 <template>
     <div class="container m-auto">
+        <Socials />
+        <hr />
         <h1 class="text-center my-4">Vibe Check</h1>
-        <h3 class="text-center my-4"><img :src="Logo" alt="Hylé logo" class="h-10 m-auto"></img></h3>
+        <hr />
         <div class="text-center my-4 explainer">
             <p class="my-4">Vibe Check is a zkML & WebAuthn Powered zkApp asserting a user has smiled and awarding test tokens on Hylé!</p>
             <p class="my-4 smaller">This is a test project! Don't take it too seriously. Code can be found on our <a href="https://github.com/Hyle-org/vibe-check">github</a></p>
