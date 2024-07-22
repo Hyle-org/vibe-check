@@ -40,13 +40,13 @@ This part is in charge of the webauthn-ecdsa signature verification.
 
 This part is in charge of running the machine learning model that detect the smile.
 
-> The aim of this is to compile noir code in a [cairo json](vibe-check-frontend/src/cairo/programs/smile-token-sierra.json) that is then used to run cairo code from browser.
+> The aim of this is to compile cairo code in a [cairo json](vibe-check-frontend/src/cairo/programs/smile-token-sierra.json) that is then used to run cairo code from browser.
 
 3) [cairo-smile-token](./cairo-smile-token/README.md)
 
 This part is in charge of locally updating the state of the smile token.
 
-> The aim of this is to compile noir code in a [cairo json](vibe-check-frontend/src/cairo/programs/smile-sierra.json) that is then used to run cairo code from browser.
+> The aim of this is to compile cairo code in a [cairo json](vibe-check-frontend/src/cairo/programs/smile-sierra.json) that is then used to run cairo code from browser.
 
 4) [cairo-runner](./cairo-runner/README.md)
 
