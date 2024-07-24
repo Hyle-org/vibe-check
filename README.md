@@ -2,7 +2,10 @@
 
 The general idea of the Vibe Check app is to give people a SmileToken to reward them for smiling. 
 
-Watch [Sylve's demo at ETHCC[7]](https://www.youtube.com/embed/EQ7hBTmeJLs?si=1W5OSnNcJ3pi8aZ9).
+
+https://github.com/user-attachments/assets/b775d6b1-6ce0-4234-b74d-70979444b0a3
+
+
 
 ## Context
 
