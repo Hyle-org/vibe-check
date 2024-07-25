@@ -1,7 +1,9 @@
+use core::option::OptionTrait;
+use core::traits::TryInto;
 use core::array::ArrayTrait;
 use core::serde::Serde;
 use core::pedersen::PedersenTrait;
-use core::pedersen::HashState;
+use core::poseidon::PoseidonTrait;
 use core::hash::{HashStateTrait, HashStateExTrait};
 
 // Serialization only works for up to 4 elements. Lets hardcode for 5 heehee
@@ -63,6 +65,7 @@ struct HyleOutput {
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
+    payload_hash: felt252,
     program_outputs: Event
 }
 
@@ -70,7 +73,7 @@ fn get_account(balances: @Array<Account>, account_name: @ByteArray) -> Option<@A
     let nb_of_accounts: usize = balances.len();
     let mut n = 0;
 
-    let account = loop{
+    let account = loop {
         if n >= nb_of_accounts {
             break Option::None;
         }
@@ -104,18 +107,19 @@ fn compute_state(balances: @Array<Account>) -> felt252 {
     let nb_of_accounts: usize = balances.len();
     let mut n = 0;
     let first_element = 1;
-    let mut state = PedersenTrait::new(first_element);    
+    let mut state = PedersenTrait::new(first_element);
 
     while n < nb_of_accounts { // Manually hashing all Accounts...
         let a: @Account = balances.at(n);
         let mut serialized_account: Array<felt252> = ArrayTrait::new();
         a.serialize(ref serialized_account);
-        while let Option::Some(value) = serialized_account.pop_front() { // ... manually hashing all values of an account...
-            state = state.update(value);
-        };
+        while let Option::Some(value) = serialized_account
+            .pop_front() { // ... manually hashing all values of an account...
+                state = state.update(value);
+            };
         n += 1;
     };
-   
+
     state.finalize()
 }
 
@@ -126,47 +130,67 @@ fn main(input: Array<felt252>) -> Array<felt252> {
 
     let mut input = input.span();
 
-    let (mut balances, amount, from, to, initial_state): (Array<Account>, u64, ByteArray, ByteArray, felt252) = Serde::deserialize(ref input).unwrap();
+    let (mut balances, payload, initial_state): (Array<Account>, Event, felt252) =
+        Serde::deserialize(
+        ref input
+    )
+        .unwrap();
 
     // Initial state compute
     let computed_initial_state = compute_state(@balances);
     assert!(computed_initial_state == initial_state, "Initial state mismatch");
 
     // Get olds balances
-    let from_balance = match get_account(@balances, @from) {
+    let from_balance = match get_account(@balances, @payload.from) {
         Option::Some(x) => x.amount,
         Option::None => panic!("Unable to find the sender")
     };
 
-    let to_balance = match get_account(@balances, @to) {
+    let to_balance = match get_account(@balances, @payload.to) {
         Option::Some(x) => x.amount,
         Option::None => {
-            let new_account = Account {name: to.clone(), amount: 0_u64};
+            let new_account = Account { name: payload.to.clone(), amount: 0_u64 };
             balances.append(new_account);
             @0_u64
         }
     };
-  
-    // Change balances
-    assert!(*from_balance >= amount, "Does not have enough funds"); // Potential overflow
 
-    let balances1 = update_account(balances, Account {name: from.clone(), amount: *from_balance - amount});
-    let balances2 = update_account(balances1, Account {name: to.clone(), amount: *to_balance + amount});
+    // Change balances
+    assert!(*from_balance >= payload.amount, "Does not have enough funds"); // Potential overflow
+
+    let balances1 = update_account(
+        balances, Account { name: payload.from.clone(), amount: *from_balance - payload.amount }
+    );
+    let balances2 = update_account(
+        balances1, Account { name: payload.to.clone(), amount: *to_balance + payload.amount }
+    );
 
     // Next state compute
     let computed_final_state = compute_state(@balances2);
 
-    // Transfer event
-    let event = Event { from: from.clone(), to: to.clone(), amount: amount };
+    let mut serialized_payload: Array<felt252> = ArrayTrait::new();
+    payload.serialize(ref serialized_payload);
+
+    let mut state = PoseidonTrait::new();
+
+    let serialized_payload_len: usize = serialized_payload.len();
+    let mut n = 0;
+    while n < serialized_payload_len {
+        state = state.update(*serialized_payload.at(n));
+        n += 1;
+    };
+
+    let payload_hash = state.finalize();
 
     // HyleOutput
     let hyle_output = HyleOutput {
         version: 1,
         initial_state: initial_state,
         next_state: computed_final_state,
-        identity: to,
+        identity: payload.to.clone(),
         tx_hash: 0,
-        program_outputs: event,
+        payload_hash: payload_hash,
+        program_outputs: payload,
     };
 
     let mut output: Array<felt252> = ArrayTrait::new();
@@ -176,25 +200,72 @@ fn main(input: Array<felt252>) -> Array<felt252> {
 
 #[cfg(test)]
 mod tests {
-    use core::pedersen::PedersenTrait;
-    use core::pedersen::HashState;
-    use core::hash::{HashStateTrait, HashStateExTrait};
-
     #[test]
     #[should_panic(expected: ("Unable to find the sender",))]
     fn test_main_bad() {
-        let input = array![2, 0, 1634493816, 4, 1, 0, 422827352430, 5, 2, 3, 0, 1667657574, 4, 0, 1684104562, 4, 2860314731281476507315630734206221670774113623634835853228573620291030899845];
+        let input = array![
+            2, // balances
+            0,
+            1634493816,
+            4,
+            1,
+            0,
+            422827352430,
+            5,
+            2,
+            0, // from
+            1667657574,
+            4,
+            0, // to
+            1684104562,
+            4,
+            3, // amount
+            2860314731281476507315630734206221670774113623634835853228573620291030899845 // initial state
+        ];
         super::main(input);
     }
 
     #[test]
     fn test_main_good() {
         let input = array![
-            2, 0, 112568767309172, 6, 999999, 0, 143880692283855892562876867187038471707818953437745, 21, 1, 1000, 0, 112568767309172, 6, 0, 155498244330488045306850287589664177200672003224113, 21, 2660732945440753159816364218357196738540210380489107417003740483648558606423
+            2, // balances
+            0,
+            112568767309172,
+            6,
+            999999,
+            0,
+            143880692283855892562876867187038471707818953437745,
+            21,
+            1,
+            0, // from
+            112568767309172,
+            6,
+            0, // to
+            155498244330488045306850287589664177200672003224113,
+            21,
+            1000, // amount
+            2660732945440753159816364218357196738540210380489107417003740483648558606423 // initial_state
         ];
         let output = super::main(input);
-        assert!(output == array![
-            1, 2660732945440753159816364218357196738540210380489107417003740483648558606423, 1971067504311848062035187400520237511515966380158318963753370573341395323621, 0, 0, 0, 0, 0, 0, 0, 0, 112568767309172, 6, 0, 155498244330488045306850287589664177200672003224113, 21, 1000
-        ], "Output mismatch");
+        assert!(
+            output == array![
+                1,
+                2660732945440753159816364218357196738540210380489107417003740483648558606423,
+                1971067504311848062035187400520237511515966380158318963753370573341395323621,
+                0,
+                155498244330488045306850287589664177200672003224113,
+                21,
+                0,
+                1978505134633853292809281685250888138671703132961394993691852215379437947833,
+                0,
+                112568767309172,
+                6,
+                0,
+                155498244330488045306850287589664177200672003224113,
+                21,
+                1000
+            ],
+            "Output mismatch"
+        );
     }
 }
