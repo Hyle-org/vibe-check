@@ -66,7 +66,7 @@ struct HyleOutput {
     identity: ByteArray,
     tx_hash: felt252,
     payload_hash: felt252,
-    program_outputs: Event
+    program_outputs: Array<felt252>
 }
 
 fn get_account(balances: @Array<Account>, account_name: @ByteArray) -> Option<@Account> {
@@ -123,6 +123,40 @@ fn compute_state(balances: @Array<Account>) -> felt252 {
     state.finalize()
 }
 
+fn processHyleOutput(
+    serialized_payload: Array<felt252>,
+    initial_state: felt252,
+    next_state: felt252,
+    identity: ByteArray,
+    tx_hash: felt252,
+    program_output: Array<felt252>
+) -> Array<felt252> {
+    // Hashing payload
+    let mut state = PoseidonTrait::new();
+    let serialized_payload_len: usize = serialized_payload.len();
+    let mut n = 0;
+    while n < serialized_payload_len {
+        state = state.update(*serialized_payload.at(n));
+        n += 1;
+    };
+    let payload_hash = state.finalize();
+
+    // HyleOutput
+    let hyle_output = HyleOutput {
+        version: 1,
+        initial_state: initial_state,
+        next_state: next_state,
+        identity: identity,
+        tx_hash: tx_hash,
+        payload_hash: payload_hash,
+        program_outputs: program_output,
+    };
+
+    let mut output: Array<felt252> = ArrayTrait::new();
+    hyle_output.serialize(ref output);
+    output
+}
+
 
 fn main(input: Array<felt252>) -> Array<felt252> {
     // bob --> to_hex = 626f62 --> to_int = 6451042 --> to_serialized = [0 6451042 3]
@@ -166,37 +200,22 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     );
 
     // Next state compute
-    let computed_final_state = compute_state(@balances2);
+    let next_state = compute_state(@balances2);
 
+    // Serialized payload for Hyle formatting
     let mut serialized_payload: Array<felt252> = ArrayTrait::new();
     payload.serialize(ref serialized_payload);
 
-    let mut state = PoseidonTrait::new();
-
-    let serialized_payload_len: usize = serialized_payload.len();
-    let mut n = 0;
-    while n < serialized_payload_len {
-        state = state.update(*serialized_payload.at(n));
-        n += 1;
-    };
-
-    let payload_hash = state.finalize();
-
-    // HyleOutput
-    let hyle_output = HyleOutput {
-        version: 1,
-        initial_state: initial_state,
-        next_state: computed_final_state,
-        identity: payload.to.clone(),
-        tx_hash: 0,
-        payload_hash: payload_hash,
-        program_outputs: payload,
-    };
-
-    let mut output: Array<felt252> = ArrayTrait::new();
-    hyle_output.serialize(ref output);
-    output
+    processHyleOutput(
+        serialized_payload.clone(),
+        initial_state,
+        next_state,
+        payload.to.clone(),
+        0,
+        serialized_payload.clone()
+    )
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -249,14 +268,15 @@ mod tests {
         let output = super::main(input);
         assert!(
             output == array![
-                1,
-                2660732945440753159816364218357196738540210380489107417003740483648558606423,
-                1971067504311848062035187400520237511515966380158318963753370573341395323621,
-                0,
+                1, // version
+                2660732945440753159816364218357196738540210380489107417003740483648558606423, // initial_state
+                1971067504311848062035187400520237511515966380158318963753370573341395323621, // next_state
+                0, // identity
                 155498244330488045306850287589664177200672003224113,
                 21,
-                0,
-                1978505134633853292809281685250888138671703132961394993691852215379437947833,
+                0, // tx_hash
+                1978505134633853292809281685250888138671703132961394993691852215379437947833, // payload_hash
+                7, // program_output
                 0,
                 112568767309172,
                 6,
