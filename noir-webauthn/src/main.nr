@@ -29,7 +29,6 @@ fn main(
     payload_hash: pub Field,
     program_outputs: pub ProgramOutputs
 ) {
-    // let client_data_json_hash = prefix_sha256_hash(program_outputs.client_data_json);
     let client_data_json_hash = prefix_sha256_hash(
         program_outputs.client_data_json_len,
         program_outputs.client_data_json

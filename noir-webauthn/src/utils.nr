@@ -1,9 +1,5 @@
 use dep::std;
 
-// pub fn prefix_sha256_hash<N>(input: [u8; N]) -> [u8; 32] {
-//     std::hash::sha256(prefix(input, [0; N]))
-// }
-
 pub fn prefix_sha256_hash<N>(prefix_length: u8, input: [u8; N]) -> [u8; 32] {
     let mut result = [0; 32];
     assert(
