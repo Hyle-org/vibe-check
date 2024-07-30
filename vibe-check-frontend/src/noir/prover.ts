@@ -23,6 +23,7 @@ export const proveECDSA = async (webAuthnValues: Record<string, any>) => {
         identity: getWebAuthnIdentity(),
         tx_hash_len: 43,
         tx_hash: webAuthnValues.challenge,
+        payload_hash: 0,
         program_outputs: {
             authenticator_data: webAuthnValues.authenticator_data,
             client_data_json_len: webAuthnValues.client_data_json_len,

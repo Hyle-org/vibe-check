@@ -35,6 +35,34 @@ export interface Contract {
   stateDigest: Uint8Array;
 }
 
+/** PayloadMetadata is the transient state we need to keep to settle payloads */
+export interface PayloadMetadata {
+  /** Hash of the payload */
+  payloadHash: Uint8Array;
+  /** Identity of the caller */
+  identity: string;
+  /** Contract name to settle */
+  contractName: string;
+  /** The next state to transition to */
+  nextState: Uint8Array;
+  /** If this payload was verified */
+  verified: boolean;
+}
+
+/** InnerPayloadTimeout is data to trigger TX timeout. */
+export interface InnerPayloadTimeout {
+  /** Hash of the TX */
+  txHash: Uint8Array;
+  /** Index of the payload in the tx */
+  payloadIndex: number;
+}
+
+/** PayloadTimeout is a list of payloads and their timeouts */
+export interface PayloadTimeout {
+  /** List of payloads and their timeouts */
+  payloads: InnerPayloadTimeout[];
+}
+
 function createBaseParams(): Params {
   return {};
 }
@@ -337,6 +365,266 @@ export const Contract = {
     message.verifier = object.verifier ?? "";
     message.programId = object.programId ?? new Uint8Array(0);
     message.stateDigest = object.stateDigest ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBasePayloadMetadata(): PayloadMetadata {
+  return {
+    payloadHash: new Uint8Array(0),
+    identity: "",
+    contractName: "",
+    nextState: new Uint8Array(0),
+    verified: false,
+  };
+}
+
+export const PayloadMetadata = {
+  encode(message: PayloadMetadata, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.payloadHash.length !== 0) {
+      writer.uint32(10).bytes(message.payloadHash);
+    }
+    if (message.identity !== "") {
+      writer.uint32(18).string(message.identity);
+    }
+    if (message.contractName !== "") {
+      writer.uint32(26).string(message.contractName);
+    }
+    if (message.nextState.length !== 0) {
+      writer.uint32(34).bytes(message.nextState);
+    }
+    if (message.verified !== false) {
+      writer.uint32(40).bool(message.verified);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PayloadMetadata {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePayloadMetadata();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.payloadHash = reader.bytes();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.identity = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.contractName = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.nextState = reader.bytes();
+          continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.verified = reader.bool();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PayloadMetadata {
+    return {
+      payloadHash: isSet(object.payloadHash) ? bytesFromBase64(object.payloadHash) : new Uint8Array(0),
+      identity: isSet(object.identity) ? globalThis.String(object.identity) : "",
+      contractName: isSet(object.contractName) ? globalThis.String(object.contractName) : "",
+      nextState: isSet(object.nextState) ? bytesFromBase64(object.nextState) : new Uint8Array(0),
+      verified: isSet(object.verified) ? globalThis.Boolean(object.verified) : false,
+    };
+  },
+
+  toJSON(message: PayloadMetadata): unknown {
+    const obj: any = {};
+    if (message.payloadHash.length !== 0) {
+      obj.payloadHash = base64FromBytes(message.payloadHash);
+    }
+    if (message.identity !== "") {
+      obj.identity = message.identity;
+    }
+    if (message.contractName !== "") {
+      obj.contractName = message.contractName;
+    }
+    if (message.nextState.length !== 0) {
+      obj.nextState = base64FromBytes(message.nextState);
+    }
+    if (message.verified !== false) {
+      obj.verified = message.verified;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PayloadMetadata>, I>>(base?: I): PayloadMetadata {
+    return PayloadMetadata.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PayloadMetadata>, I>>(object: I): PayloadMetadata {
+    const message = createBasePayloadMetadata();
+    message.payloadHash = object.payloadHash ?? new Uint8Array(0);
+    message.identity = object.identity ?? "";
+    message.contractName = object.contractName ?? "";
+    message.nextState = object.nextState ?? new Uint8Array(0);
+    message.verified = object.verified ?? false;
+    return message;
+  },
+};
+
+function createBaseInnerPayloadTimeout(): InnerPayloadTimeout {
+  return { txHash: new Uint8Array(0), payloadIndex: 0 };
+}
+
+export const InnerPayloadTimeout = {
+  encode(message: InnerPayloadTimeout, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.txHash.length !== 0) {
+      writer.uint32(10).bytes(message.txHash);
+    }
+    if (message.payloadIndex !== 0) {
+      writer.uint32(16).uint32(message.payloadIndex);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): InnerPayloadTimeout {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseInnerPayloadTimeout();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.txHash = reader.bytes();
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.payloadIndex = reader.uint32();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): InnerPayloadTimeout {
+    return {
+      txHash: isSet(object.txHash) ? bytesFromBase64(object.txHash) : new Uint8Array(0),
+      payloadIndex: isSet(object.payloadIndex) ? globalThis.Number(object.payloadIndex) : 0,
+    };
+  },
+
+  toJSON(message: InnerPayloadTimeout): unknown {
+    const obj: any = {};
+    if (message.txHash.length !== 0) {
+      obj.txHash = base64FromBytes(message.txHash);
+    }
+    if (message.payloadIndex !== 0) {
+      obj.payloadIndex = Math.round(message.payloadIndex);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<InnerPayloadTimeout>, I>>(base?: I): InnerPayloadTimeout {
+    return InnerPayloadTimeout.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<InnerPayloadTimeout>, I>>(object: I): InnerPayloadTimeout {
+    const message = createBaseInnerPayloadTimeout();
+    message.txHash = object.txHash ?? new Uint8Array(0);
+    message.payloadIndex = object.payloadIndex ?? 0;
+    return message;
+  },
+};
+
+function createBasePayloadTimeout(): PayloadTimeout {
+  return { payloads: [] };
+}
+
+export const PayloadTimeout = {
+  encode(message: PayloadTimeout, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.payloads) {
+      InnerPayloadTimeout.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PayloadTimeout {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePayloadTimeout();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.payloads.push(InnerPayloadTimeout.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PayloadTimeout {
+    return {
+      payloads: globalThis.Array.isArray(object?.payloads)
+        ? object.payloads.map((e: any) => InnerPayloadTimeout.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: PayloadTimeout): unknown {
+    const obj: any = {};
+    if (message.payloads?.length) {
+      obj.payloads = message.payloads.map((e) => InnerPayloadTimeout.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PayloadTimeout>, I>>(base?: I): PayloadTimeout {
+    return PayloadTimeout.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PayloadTimeout>, I>>(object: I): PayloadTimeout {
+    const message = createBasePayloadTimeout();
+    message.payloads = object.payloads?.map((e) => InnerPayloadTimeout.fromPartial(e)) || [];
     return message;
   },
 };

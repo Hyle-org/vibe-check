@@ -4,7 +4,7 @@ import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
 import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
 import { runSmile, proveSmile, proveERC20Transfer } from "./cairo/prover";
 import { proveECDSA } from "./noir/prover";
-import { setupCosmos, broadcastTx, checkTxStatus, ensureContractsRegistered } from "./cosmos";
+import { setupCosmos, broadcastProofTx, checkTxStatuses, ensureContractsRegistered, broadcastPayloadTx, uint8ArrayToBase64 } from "./cosmos";
 import { getBalances } from "./SmileTokenIndexer";
 
 import Logo from "./assets/Hyle_logo.svg";
@@ -14,6 +14,8 @@ import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
+import { computeErc20Args, computeErc20Payload, computeSmileArgs, computeSmilePayload } from "./cairo/CairoRunner";
+import { CairoArgs, CairoSmileArgs } from "./cairo/CairoHash";
 
 // These are references to HTML elements
 const canvasOutput = ref<HTMLCanvasElement | null>(null);
@@ -230,15 +232,15 @@ const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: nu
 
     grayScale = imageToGrayScale(smallCtx.getImageData(0, 0, 48, 48));
 
-    var dryRunSmileArgs = {
+    var dryRunSmilePayload = computeSmilePayload({
         identity: "DRYRUN", // not used in the model
         image: [...grayScale]
-    };
+    });
 
     // On iOS, we need to skip it as it takes too long.
     let isSmiling;
     if (navigator.userAgent.indexOf('AppleWebKit') === -1) {
-        let cairoSmileRunOutput = await runSmile(dryRunSmileArgs);
+        let cairoSmileRunOutput = await runSmile(dryRunSmilePayload);
         // Get last parameter of the serialized HyleOutput struct
         const last = cairoSmileRunOutput.split(" ").reverse()[0];
 
@@ -280,37 +282,68 @@ const signAndSend = async () => {
     smilePromiseDone.value = false;
     erc20PromiseDone.value = false;
     status.value = "proving";
-    const identity = identityRef.value;
+    const identity = identityRef.value ? identityRef.value : getWebAuthnIdentity();
 
     try {
-        // Start locally proving that we are who we claim to be by signing the transaction hash
-        // Send the proof of smile to Giza or something
-        const smilePromise = proveSmile({
-            identity: identity,
-            image: [...grayScale]
-        });
-        // Locally or backend prove an erc20 transfer
-        const erc20Promise = proveERC20Transfer({
-            balances: getBalances(),
-            amount: 100,
-            from: "faucet",
-            to: identity,
-        });
-
         const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
         const webAuthnValues = await signChallengeWithWebAuthn(challenge);
-        const ecdsaPromise = proveECDSA(webAuthnValues);
 
-        ecdsaPromise.then(() => ecdsaPromiseDone.value = true);
-        smilePromise.then(() => smilePromiseDone.value = true);
-        erc20Promise.then(() => erc20PromiseDone.value = true);
+        // Start locally proving that we are who we claim to be by signing the transaction hash
+        // Send the proof of smile to Giza or something
+        const smileArgs: CairoSmileArgs = {
+            identity: identity,
+            image: [...grayScale]
+        };
+        const smilePayload = computeSmilePayload(smileArgs);
+
+        // Locally or backend prove an erc20 transfer
+        const erc20Args: CairoArgs = {
+            balances: getBalances(),
+            from: "faucet",
+            to: identity,
+            amount: 100,
+        };
+        const erc20Payload = computeErc20Payload(erc20Args);
 
         // Send the transaction
-        const resp = await broadcastTx(
-            await ecdsaPromise,
-            await smilePromise,
-            await erc20Promise,
+        const payloadResp = await broadcastPayloadTx(
+            Uint8Array.from(webAuthnValues.signature), // ATM we don't process noir payload. This value might change in the future
+            smilePayload,
+            erc20Payload,
         );
+
+        console.log("PayloadTx: ", payloadResp.transactionHash)
+
+        const ecdsaPromise = proveECDSA(webAuthnValues);
+        const erc20Promise = proveERC20Transfer(erc20Args);
+        const smilePromise = proveSmile(smileArgs);
+
+        ecdsaPromise.then(() => ecdsaPromiseDone.value = true);
+        erc20Promise.then(() => erc20PromiseDone.value = true);
+        smilePromise.then(() => smilePromiseDone.value = true);
+
+        // Send the proofs transactions
+        const ecdsaResp = await broadcastProofTx(
+            payloadResp.transactionHash,
+            0,
+            "ecdsa_secp256r1",
+            window.btoa(await ecdsaPromise)
+        );
+        const erc20Resp = await broadcastProofTx(
+            payloadResp.transactionHash,
+            1,
+            "smile_token",
+            uint8ArrayToBase64(await erc20Promise)
+        );
+        const smileResp = await broadcastProofTx(
+            payloadResp.transactionHash,
+            2,
+            "smile",
+            uint8ArrayToBase64(await smilePromise)
+        );
+        console.log("ecdsaProofTx: ", ecdsaResp.transactionHash)
+        console.log("erc20ProofTx: ", erc20Resp.transactionHash)
+        console.log("smileProofTx: ", smileResp.transactionHash)
         // Switch to waiter view
         status.value = "checking_tx";
 
@@ -318,10 +351,14 @@ const signAndSend = async () => {
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         // Check the status of the TX
-        const txStatus = await checkTxStatus(resp.transactionHash);
+        const txStatus = await checkTxStatuses([
+            ecdsaResp.transactionHash,
+            erc20Resp.transactionHash,
+            smileResp.transactionHash,
+        ]);
         if (txStatus.status === "success") {
             status.value = "tx_success";
-            txHash.value = resp.transactionHash;
+            txHash.value = erc20Resp.transactionHash; // il faut mettre les 3 tx dedans
         } else {
             status.value = "tx_failure";
             error.value = txStatus.error || "Unknown error";

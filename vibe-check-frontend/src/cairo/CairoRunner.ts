@@ -5,7 +5,7 @@ import runnerInit, { wasm_cairo_run } from "./runner-pkg/cairo_runner";
 import proverInit from "./prover-pkg/cairo_verifier";
 import JSZip from "jszip";
 
-import { CairoArgs, CairoSmileArgs, hashBalance, serByteArray } from "./CairoHash.js";
+import { CairoArgs, CairoSmileArgs, serByteArray } from "./CairoHash.js";
 import { getCairoProverUrl } from "../network";
 
 var cairoERC20RunOutput: any;
@@ -16,16 +16,25 @@ var setupSmile: Promise<any>;
 // exported for testing
 export function computeErc20Args(args: CairoArgs): string {
     const balances = args.balances.map((x) => `${serByteArray(x.name)} ${x.amount}`).join(" ");
+    console.log(`[${args.balances.length} ${balances} ${_computeErc20Payload(args)}]`);
+    return `[${args.balances.length} ${balances} ${_computeErc20Payload(args)}]`;
+}
 
-    let hash = hashBalance(args.balances);
+export function computeErc20Payload(args: CairoArgs): string {
+    return `[${_computeErc20Payload(args)}]`;
+}
 
-    return `[${args.balances.length} ${balances} ${args.amount} ${serByteArray(args.from)} ${serByteArray(args.to)} ${hash}]`;
+function _computeErc20Payload(args: CairoArgs): string {
+    let payload = `${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`
+    return `${payload.split(" ").length} ${payload}`;
 }
 
 export function computeSmileArgs(args: CairoSmileArgs): string {
-    const initialState = 666;
+    return `[${serByteArray(args.identity)} ${args.image.length} ${args.image.join(" ")}]`;
+}
 
-    return `[${initialState} ${serByteArray(args.identity)} ${args.image.length} ${args.image.join(" ")}]`;
+export function computeSmilePayload(args: CairoSmileArgs): string {
+    return `[${args.image.length} ${args.image.join(" ")}]`;
 }
 
 onmessage = function (e) {

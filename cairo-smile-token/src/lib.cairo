@@ -3,7 +3,6 @@ use core::traits::TryInto;
 use core::array::ArrayTrait;
 use core::serde::Serde;
 use core::pedersen::PedersenTrait;
-use core::poseidon::PoseidonTrait;
 use core::hash::{HashStateTrait, HashStateExTrait};
 
 // Serialization only works for up to 4 elements. Lets hardcode for 5 heehee
@@ -133,7 +132,7 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     let next_state = compute_state_pedersen_hash(@balances2);
 
     processHyleOutput(
-        payload.clone(), initial_state, next_state, event.to.clone(), 0, payload.clone()
+        1, initial_state, next_state, event.to.clone(), 0, payload.clone(), payload.clone()
     )
 }
 
@@ -175,22 +174,21 @@ fn compute_hash_on_elements(mut data: Span<felt252>) -> felt252 {
 }
 
 fn processHyleOutput(
-    payload: Array<felt252>,
+    version: u32,
     initial_state: felt252,
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
+    payload: Array<felt252>,
     program_output: Array<felt252>
 ) -> Array<felt252> {
     // Hashing payload
-    // let mut state = PoseidonTrait::new();
-
     let payload_span = payload.span();
     let payload_hash = compute_hash_on_elements(payload_span);
 
     // HyleOutput
     let hyle_output = HyleOutput {
-        version: 1,
+        version: version,
         initial_state: initial_state,
         next_state: next_state,
         identity: identity,

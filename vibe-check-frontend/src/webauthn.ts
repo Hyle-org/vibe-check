@@ -187,6 +187,6 @@ export const getWebAuthnIdentity = () => {
 
         return hexResult.join("") + ".ecdsa_secp256r1";
     } catch (error) {
-    console.log("Identity not loaded yet");
+        console.log("Identity not loaded yet");
     }
 };

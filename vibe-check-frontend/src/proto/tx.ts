@@ -6,38 +6,41 @@
 
 /* eslint-disable */
 import * as _m0 from "protobufjs/minimal";
-import { Params } from "./types";
 
 export const protobufPackage = "hyle.zktx.v1";
 
-/** StateChange is a zk-proven state change to be executed */
-export interface StateChange {
+/** Payload is a blob */
+export interface Payload {
   /** Name of target contract */
   contractName: string;
-  /** Proof of the transaction */
-  proof: Uint8Array;
+  /** Payload data */
+  data: Uint8Array;
 }
 
 /** execute a zk-proven state change - request type */
-export interface MsgExecuteStateChanges {
-  /** list of state changes to execute */
-  stateChanges: StateChange[];
+export interface MsgPublishPayloads {
+  /** list of payloads */
+  payloads: Payload[];
 }
 
 /** No response */
-export interface MsgExecuteStateChangesResponse {
+export interface MsgPublishPayloadsResponse {
 }
 
-/** Only verify a ZK proof - request type */
-export interface MsgVerifyProof {
-  /** Contract the proof is being sent to */
+/** Prove a previously published payload */
+export interface MsgPublishPayloadProof {
+  /** Tx hash of the payload to prove */
+  txHash: Uint8Array;
+  /** Index of the payload in the tx */
+  payloadIndex: number;
+  /** Contract name */
   contractName: string;
-  /** Proof of the transaction */
+  /** Proof of the payload */
   proof: Uint8Array;
 }
 
 /** No response */
-export interface MsgVerifyProofResponse {
+export interface MsgPublishPayloadProofResponse {
 }
 
 /** Register a contract - request type */
@@ -58,46 +61,25 @@ export interface MsgRegisterContract {
 export interface MsgRegisterContractResponse {
 }
 
-/** MsgUpdateParams is the Msg/UpdateParams request type. */
-export interface MsgUpdateParams {
-  /**
-   * authority is the address that controls the module
-   * NOTE: Defaults to the governance module unless overwritten.
-   */
-  authority: string;
-  /**
-   * params defines the module parameters to update.
-   * NOTE: All parameters must be supplied.
-   */
-  params: Params | undefined;
+function createBasePayload(): Payload {
+  return { contractName: "", data: new Uint8Array(0) };
 }
 
-/**
- * MsgUpdateParamsResponse defines the response structure for executing a
- * MsgUpdateParams message.
- */
-export interface MsgUpdateParamsResponse {
-}
-
-function createBaseStateChange(): StateChange {
-  return { contractName: "", proof: new Uint8Array(0) };
-}
-
-export const StateChange = {
-  encode(message: StateChange, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const Payload = {
+  encode(message: Payload, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.contractName !== "") {
       writer.uint32(10).string(message.contractName);
     }
-    if (message.proof.length !== 0) {
-      writer.uint32(18).bytes(message.proof);
+    if (message.data.length !== 0) {
+      writer.uint32(18).bytes(message.data);
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): StateChange {
+  decode(input: _m0.Reader | Uint8Array, length?: number): Payload {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseStateChange();
+    const message = createBasePayload();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -113,7 +95,7 @@ export const StateChange = {
             break;
           }
 
-          message.proof = reader.bytes();
+          message.data = reader.bytes();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -124,51 +106,51 @@ export const StateChange = {
     return message;
   },
 
-  fromJSON(object: any): StateChange {
+  fromJSON(object: any): Payload {
     return {
       contractName: isSet(object.contractName) ? globalThis.String(object.contractName) : "",
-      proof: isSet(object.proof) ? bytesFromBase64(object.proof) : new Uint8Array(0),
+      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
     };
   },
 
-  toJSON(message: StateChange): unknown {
+  toJSON(message: Payload): unknown {
     const obj: any = {};
     if (message.contractName !== "") {
       obj.contractName = message.contractName;
     }
-    if (message.proof.length !== 0) {
-      obj.proof = base64FromBytes(message.proof);
+    if (message.data.length !== 0) {
+      obj.data = base64FromBytes(message.data);
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<StateChange>, I>>(base?: I): StateChange {
-    return StateChange.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<Payload>, I>>(base?: I): Payload {
+    return Payload.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<StateChange>, I>>(object: I): StateChange {
-    const message = createBaseStateChange();
+  fromPartial<I extends Exact<DeepPartial<Payload>, I>>(object: I): Payload {
+    const message = createBasePayload();
     message.contractName = object.contractName ?? "";
-    message.proof = object.proof ?? new Uint8Array(0);
+    message.data = object.data ?? new Uint8Array(0);
     return message;
   },
 };
 
-function createBaseMsgExecuteStateChanges(): MsgExecuteStateChanges {
-  return { stateChanges: [] };
+function createBaseMsgPublishPayloads(): MsgPublishPayloads {
+  return { payloads: [] };
 }
 
-export const MsgExecuteStateChanges = {
-  encode(message: MsgExecuteStateChanges, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    for (const v of message.stateChanges) {
-      StateChange.encode(v!, writer.uint32(10).fork()).ldelim();
+export const MsgPublishPayloads = {
+  encode(message: MsgPublishPayloads, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.payloads) {
+      Payload.encode(v!, writer.uint32(10).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgExecuteStateChanges {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgPublishPayloads {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgExecuteStateChanges();
+    const message = createBaseMsgPublishPayloads();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -177,7 +159,7 @@ export const MsgExecuteStateChanges = {
             break;
           }
 
-          message.stateChanges.push(StateChange.decode(reader, reader.uint32()));
+          message.payloads.push(Payload.decode(reader, reader.uint32()));
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -188,45 +170,43 @@ export const MsgExecuteStateChanges = {
     return message;
   },
 
-  fromJSON(object: any): MsgExecuteStateChanges {
+  fromJSON(object: any): MsgPublishPayloads {
     return {
-      stateChanges: globalThis.Array.isArray(object?.stateChanges)
-        ? object.stateChanges.map((e: any) => StateChange.fromJSON(e))
-        : [],
+      payloads: globalThis.Array.isArray(object?.payloads) ? object.payloads.map((e: any) => Payload.fromJSON(e)) : [],
     };
   },
 
-  toJSON(message: MsgExecuteStateChanges): unknown {
+  toJSON(message: MsgPublishPayloads): unknown {
     const obj: any = {};
-    if (message.stateChanges?.length) {
-      obj.stateChanges = message.stateChanges.map((e) => StateChange.toJSON(e));
+    if (message.payloads?.length) {
+      obj.payloads = message.payloads.map((e) => Payload.toJSON(e));
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<MsgExecuteStateChanges>, I>>(base?: I): MsgExecuteStateChanges {
-    return MsgExecuteStateChanges.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<MsgPublishPayloads>, I>>(base?: I): MsgPublishPayloads {
+    return MsgPublishPayloads.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<MsgExecuteStateChanges>, I>>(object: I): MsgExecuteStateChanges {
-    const message = createBaseMsgExecuteStateChanges();
-    message.stateChanges = object.stateChanges?.map((e) => StateChange.fromPartial(e)) || [];
+  fromPartial<I extends Exact<DeepPartial<MsgPublishPayloads>, I>>(object: I): MsgPublishPayloads {
+    const message = createBaseMsgPublishPayloads();
+    message.payloads = object.payloads?.map((e) => Payload.fromPartial(e)) || [];
     return message;
   },
 };
 
-function createBaseMsgExecuteStateChangesResponse(): MsgExecuteStateChangesResponse {
+function createBaseMsgPublishPayloadsResponse(): MsgPublishPayloadsResponse {
   return {};
 }
 
-export const MsgExecuteStateChangesResponse = {
-  encode(_: MsgExecuteStateChangesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const MsgPublishPayloadsResponse = {
+  encode(_: MsgPublishPayloadsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgExecuteStateChangesResponse {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgPublishPayloadsResponse {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgExecuteStateChangesResponse();
+    const message = createBaseMsgPublishPayloadsResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -239,55 +219,75 @@ export const MsgExecuteStateChangesResponse = {
     return message;
   },
 
-  fromJSON(_: any): MsgExecuteStateChangesResponse {
+  fromJSON(_: any): MsgPublishPayloadsResponse {
     return {};
   },
 
-  toJSON(_: MsgExecuteStateChangesResponse): unknown {
+  toJSON(_: MsgPublishPayloadsResponse): unknown {
     const obj: any = {};
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<MsgExecuteStateChangesResponse>, I>>(base?: I): MsgExecuteStateChangesResponse {
-    return MsgExecuteStateChangesResponse.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<MsgPublishPayloadsResponse>, I>>(base?: I): MsgPublishPayloadsResponse {
+    return MsgPublishPayloadsResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<MsgExecuteStateChangesResponse>, I>>(_: I): MsgExecuteStateChangesResponse {
-    const message = createBaseMsgExecuteStateChangesResponse();
+  fromPartial<I extends Exact<DeepPartial<MsgPublishPayloadsResponse>, I>>(_: I): MsgPublishPayloadsResponse {
+    const message = createBaseMsgPublishPayloadsResponse();
     return message;
   },
 };
 
-function createBaseMsgVerifyProof(): MsgVerifyProof {
-  return { contractName: "", proof: new Uint8Array(0) };
+function createBaseMsgPublishPayloadProof(): MsgPublishPayloadProof {
+  return { txHash: new Uint8Array(0), payloadIndex: 0, contractName: "", proof: new Uint8Array(0) };
 }
 
-export const MsgVerifyProof = {
-  encode(message: MsgVerifyProof, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const MsgPublishPayloadProof = {
+  encode(message: MsgPublishPayloadProof, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.txHash.length !== 0) {
+      writer.uint32(10).bytes(message.txHash);
+    }
+    if (message.payloadIndex !== 0) {
+      writer.uint32(16).uint32(message.payloadIndex);
+    }
     if (message.contractName !== "") {
-      writer.uint32(10).string(message.contractName);
+      writer.uint32(26).string(message.contractName);
     }
     if (message.proof.length !== 0) {
-      writer.uint32(18).bytes(message.proof);
+      writer.uint32(34).bytes(message.proof);
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgVerifyProof {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgPublishPayloadProof {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgVerifyProof();
+    const message = createBaseMsgPublishPayloadProof();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
           if (tag !== 10) {
+            break;
+          }
+
+          message.txHash = reader.bytes();
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.payloadIndex = reader.uint32();
+          continue;
+        case 3:
+          if (tag !== 26) {
             break;
           }
 
           message.contractName = reader.string();
           continue;
-        case 2:
-          if (tag !== 18) {
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -302,15 +302,23 @@ export const MsgVerifyProof = {
     return message;
   },
 
-  fromJSON(object: any): MsgVerifyProof {
+  fromJSON(object: any): MsgPublishPayloadProof {
     return {
+      txHash: isSet(object.txHash) ? bytesFromBase64(object.txHash) : new Uint8Array(0),
+      payloadIndex: isSet(object.payloadIndex) ? globalThis.Number(object.payloadIndex) : 0,
       contractName: isSet(object.contractName) ? globalThis.String(object.contractName) : "",
       proof: isSet(object.proof) ? bytesFromBase64(object.proof) : new Uint8Array(0),
     };
   },
 
-  toJSON(message: MsgVerifyProof): unknown {
+  toJSON(message: MsgPublishPayloadProof): unknown {
     const obj: any = {};
+    if (message.txHash.length !== 0) {
+      obj.txHash = base64FromBytes(message.txHash);
+    }
+    if (message.payloadIndex !== 0) {
+      obj.payloadIndex = Math.round(message.payloadIndex);
+    }
     if (message.contractName !== "") {
       obj.contractName = message.contractName;
     }
@@ -320,30 +328,32 @@ export const MsgVerifyProof = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<MsgVerifyProof>, I>>(base?: I): MsgVerifyProof {
-    return MsgVerifyProof.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<MsgPublishPayloadProof>, I>>(base?: I): MsgPublishPayloadProof {
+    return MsgPublishPayloadProof.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<MsgVerifyProof>, I>>(object: I): MsgVerifyProof {
-    const message = createBaseMsgVerifyProof();
+  fromPartial<I extends Exact<DeepPartial<MsgPublishPayloadProof>, I>>(object: I): MsgPublishPayloadProof {
+    const message = createBaseMsgPublishPayloadProof();
+    message.txHash = object.txHash ?? new Uint8Array(0);
+    message.payloadIndex = object.payloadIndex ?? 0;
     message.contractName = object.contractName ?? "";
     message.proof = object.proof ?? new Uint8Array(0);
     return message;
   },
 };
 
-function createBaseMsgVerifyProofResponse(): MsgVerifyProofResponse {
+function createBaseMsgPublishPayloadProofResponse(): MsgPublishPayloadProofResponse {
   return {};
 }
 
-export const MsgVerifyProofResponse = {
-  encode(_: MsgVerifyProofResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const MsgPublishPayloadProofResponse = {
+  encode(_: MsgPublishPayloadProofResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgVerifyProofResponse {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgPublishPayloadProofResponse {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgVerifyProofResponse();
+    const message = createBaseMsgPublishPayloadProofResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -356,20 +366,20 @@ export const MsgVerifyProofResponse = {
     return message;
   },
 
-  fromJSON(_: any): MsgVerifyProofResponse {
+  fromJSON(_: any): MsgPublishPayloadProofResponse {
     return {};
   },
 
-  toJSON(_: MsgVerifyProofResponse): unknown {
+  toJSON(_: MsgPublishPayloadProofResponse): unknown {
     const obj: any = {};
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<MsgVerifyProofResponse>, I>>(base?: I): MsgVerifyProofResponse {
-    return MsgVerifyProofResponse.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<MsgPublishPayloadProofResponse>, I>>(base?: I): MsgPublishPayloadProofResponse {
+    return MsgPublishPayloadProofResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<MsgVerifyProofResponse>, I>>(_: I): MsgVerifyProofResponse {
-    const message = createBaseMsgVerifyProofResponse();
+  fromPartial<I extends Exact<DeepPartial<MsgPublishPayloadProofResponse>, I>>(_: I): MsgPublishPayloadProofResponse {
+    const message = createBaseMsgPublishPayloadProofResponse();
     return message;
   },
 };
@@ -536,135 +546,14 @@ export const MsgRegisterContractResponse = {
   },
 };
 
-function createBaseMsgUpdateParams(): MsgUpdateParams {
-  return { authority: "", params: undefined };
-}
-
-export const MsgUpdateParams = {
-  encode(message: MsgUpdateParams, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.authority !== "") {
-      writer.uint32(10).string(message.authority);
-    }
-    if (message.params !== undefined) {
-      Params.encode(message.params, writer.uint32(18).fork()).ldelim();
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgUpdateParams {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgUpdateParams();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.authority = reader.string();
-          continue;
-        case 2:
-          if (tag !== 18) {
-            break;
-          }
-
-          message.params = Params.decode(reader, reader.uint32());
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MsgUpdateParams {
-    return {
-      authority: isSet(object.authority) ? globalThis.String(object.authority) : "",
-      params: isSet(object.params) ? Params.fromJSON(object.params) : undefined,
-    };
-  },
-
-  toJSON(message: MsgUpdateParams): unknown {
-    const obj: any = {};
-    if (message.authority !== "") {
-      obj.authority = message.authority;
-    }
-    if (message.params !== undefined) {
-      obj.params = Params.toJSON(message.params);
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<MsgUpdateParams>, I>>(base?: I): MsgUpdateParams {
-    return MsgUpdateParams.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<MsgUpdateParams>, I>>(object: I): MsgUpdateParams {
-    const message = createBaseMsgUpdateParams();
-    message.authority = object.authority ?? "";
-    message.params = (object.params !== undefined && object.params !== null)
-      ? Params.fromPartial(object.params)
-      : undefined;
-    return message;
-  },
-};
-
-function createBaseMsgUpdateParamsResponse(): MsgUpdateParamsResponse {
-  return {};
-}
-
-export const MsgUpdateParamsResponse = {
-  encode(_: MsgUpdateParamsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgUpdateParamsResponse {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgUpdateParamsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): MsgUpdateParamsResponse {
-    return {};
-  },
-
-  toJSON(_: MsgUpdateParamsResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<MsgUpdateParamsResponse>, I>>(base?: I): MsgUpdateParamsResponse {
-    return MsgUpdateParamsResponse.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<MsgUpdateParamsResponse>, I>>(_: I): MsgUpdateParamsResponse {
-    const message = createBaseMsgUpdateParamsResponse();
-    return message;
-  },
-};
-
 /** Msg defines the module Msg service. */
 export interface Msg {
   /** execute a zk-proven state change */
-  ExecuteStateChanges(request: MsgExecuteStateChanges): Promise<MsgExecuteStateChangesResponse>;
-  /** Only verify a ZK proof */
-  VerifyProof(request: MsgVerifyProof): Promise<MsgVerifyProofResponse>;
+  PublishPayloads(request: MsgPublishPayloads): Promise<MsgPublishPayloadsResponse>;
+  /** Verify a payload */
+  PublishPayloadProof(request: MsgPublishPayloadProof): Promise<MsgPublishPayloadProofResponse>;
   /** RegisterContract registers a contract */
   RegisterContract(request: MsgRegisterContract): Promise<MsgRegisterContractResponse>;
-  /** UpdateParams updates the module parameters. */
-  UpdateParams(request: MsgUpdateParams): Promise<MsgUpdateParamsResponse>;
 }
 
 export const MsgServiceName = "hyle.zktx.v1.Msg";
@@ -674,33 +563,26 @@ export class MsgClientImpl implements Msg {
   constructor(rpc: Rpc, opts?: { service?: string }) {
     this.service = opts?.service || MsgServiceName;
     this.rpc = rpc;
-    this.ExecuteStateChanges = this.ExecuteStateChanges.bind(this);
-    this.VerifyProof = this.VerifyProof.bind(this);
+    this.PublishPayloads = this.PublishPayloads.bind(this);
+    this.PublishPayloadProof = this.PublishPayloadProof.bind(this);
     this.RegisterContract = this.RegisterContract.bind(this);
-    this.UpdateParams = this.UpdateParams.bind(this);
   }
-  ExecuteStateChanges(request: MsgExecuteStateChanges): Promise<MsgExecuteStateChangesResponse> {
-    const data = MsgExecuteStateChanges.encode(request).finish();
-    const promise = this.rpc.request(this.service, "ExecuteStateChanges", data);
-    return promise.then((data) => MsgExecuteStateChangesResponse.decode(_m0.Reader.create(data)));
+  PublishPayloads(request: MsgPublishPayloads): Promise<MsgPublishPayloadsResponse> {
+    const data = MsgPublishPayloads.encode(request).finish();
+    const promise = this.rpc.request(this.service, "PublishPayloads", data);
+    return promise.then((data) => MsgPublishPayloadsResponse.decode(_m0.Reader.create(data)));
   }
 
-  VerifyProof(request: MsgVerifyProof): Promise<MsgVerifyProofResponse> {
-    const data = MsgVerifyProof.encode(request).finish();
-    const promise = this.rpc.request(this.service, "VerifyProof", data);
-    return promise.then((data) => MsgVerifyProofResponse.decode(_m0.Reader.create(data)));
+  PublishPayloadProof(request: MsgPublishPayloadProof): Promise<MsgPublishPayloadProofResponse> {
+    const data = MsgPublishPayloadProof.encode(request).finish();
+    const promise = this.rpc.request(this.service, "PublishPayloadProof", data);
+    return promise.then((data) => MsgPublishPayloadProofResponse.decode(_m0.Reader.create(data)));
   }
 
   RegisterContract(request: MsgRegisterContract): Promise<MsgRegisterContractResponse> {
     const data = MsgRegisterContract.encode(request).finish();
     const promise = this.rpc.request(this.service, "RegisterContract", data);
     return promise.then((data) => MsgRegisterContractResponse.decode(_m0.Reader.create(data)));
-  }
-
-  UpdateParams(request: MsgUpdateParams): Promise<MsgUpdateParamsResponse> {
-    const data = MsgUpdateParams.encode(request).finish();
-    const promise = this.rpc.request(this.service, "UpdateParams", data);
-    return promise.then((data) => MsgUpdateParamsResponse.decode(_m0.Reader.create(data)));
   }
 }
 

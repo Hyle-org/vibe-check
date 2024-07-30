@@ -161,7 +161,7 @@ export function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 import { ref } from "vue";
-import { MsgExecuteStateChanges, MsgRegisterContract } from "./proto/tx.ts";
+import { MsgRegisterContract } from "./proto/tx.ts";
 import { Tx as CosmosTx } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { getNetworkWebsocketUrl } from "./network.ts";
 
@@ -170,7 +170,7 @@ export function GetAllStateChanges() {
         [] as {
             height: number;
             txhash: string;
-            messages: MsgExecuteStateChanges;
+            // messages: MsgExecuteStateChanges;
         }[],
     );
 
@@ -185,7 +185,7 @@ export function GetAllStateChanges() {
                     messages.value.push({
                         height: tx.height,
                         txhash: tx.txhash,
-                        messages: MsgExecuteStateChanges.decode(msg.value),
+                        // messages: MsgExecuteStateChanges.decode(msg.value),
                     });
                 });
             });
