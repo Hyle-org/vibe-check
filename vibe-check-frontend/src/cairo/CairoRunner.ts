@@ -16,7 +16,6 @@ var setupSmile: Promise<any>;
 // exported for testing
 export function computeErc20Args(args: CairoArgs): string {
     const balances = args.balances.map((x) => `${serByteArray(x.name)} ${x.amount}`).join(" ");
-    console.log(`[${args.balances.length} ${balances} ${_computeErc20Payload(args)}]`);
     return `[${args.balances.length} ${balances} ${_computeErc20Payload(args)}]`;
 }
 
