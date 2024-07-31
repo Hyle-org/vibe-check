@@ -451,7 +451,7 @@ dependencies = [
 [[package]]
 name = "cairo-verifier"
 version = "0.1.0"
-source = "git+https://github.com/Hyle-org/hyle?rev=151921d#151921de4494e0bd994726635885d321a7199307"
+source = "git+https://github.com/Hyle-org/hyle?rev=187ded2#187ded21baf1c120356ff1a3f559a71a35b3c021"
 dependencies = [
  "bincode 2.0.0-rc.2",
  "cairo-platinum-prover",
@@ -944,7 +944,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "hyle_contract"
 version = "0.1.0"
-source = "git+https://github.com/Hyle-org/hyle?rev=151921d#151921de4494e0bd994726635885d321a7199307"
+source = "git+https://github.com/Hyle-org/hyle?rev=187ded2#187ded21baf1c120356ff1a3f559a71a35b3c021"
 dependencies = [
  "num",
  "serde",

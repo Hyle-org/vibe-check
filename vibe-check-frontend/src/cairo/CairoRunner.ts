@@ -16,16 +16,18 @@ var setupSmile: Promise<any>;
 // exported for testing
 export function computeErc20Args(args: CairoArgs): string {
     const balances = args.balances.map((x) => `${serByteArray(x.name)} ${x.amount}`).join(" ");
-    return `[${args.balances.length} ${balances} ${_computeErc20Payload(args)}]`;
+    let [payload_length, payload] = _computeErc20Payload(args);
+    return `[${args.balances.length} ${balances} ${payload_length} ${payload}]`;
 }
 
 export function computeErc20Payload(args: CairoArgs): string {
-    return `[${_computeErc20Payload(args)}]`;
+    let [_, output] = _computeErc20Payload(args);
+    return `[${output}]`;
 }
 
-function _computeErc20Payload(args: CairoArgs): string {
+function _computeErc20Payload(args: CairoArgs): [number, string] {
     let payload = `${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`
-    return `${payload.split(" ").length} ${payload}`;
+    return [payload.split(" ").length, `${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`];
 }
 
 export function computeSmileArgs(args: CairoSmileArgs): string {
@@ -33,7 +35,7 @@ export function computeSmileArgs(args: CairoSmileArgs): string {
 }
 
 export function computeSmilePayload(args: CairoSmileArgs): string {
-    return `[${args.image.length} ${args.image.join(" ")}]`;
+    return `[${args.image.join(" ")}]`;
 }
 
 onmessage = function (e) {
