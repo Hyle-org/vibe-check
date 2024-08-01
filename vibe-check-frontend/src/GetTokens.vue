@@ -40,7 +40,7 @@ const erc20PromiseDone = ref<boolean>(false);
 const status = ref<string>("start");
 const screen = ref<string>("start");
 const error = ref<string | null>(null);
-const identityRef = ref<string | undefined>();
+const identityRef = ref<string>();
 const txHash = ref<string | null>(null);
 
 // Match screen to status
@@ -78,6 +78,7 @@ onMounted(async () => {
     await faceApi.nets.tinyFaceDetector.loadFromUri("/models");
     await setupCosmos(getNetworkRpcUrl());
     await ensureContractsRegistered();
+    identityRef.value = getWebAuthnIdentity();
 });
 
 const doWebAuthn = async () => {
@@ -282,7 +283,13 @@ const signAndSend = async () => {
     smilePromiseDone.value = false;
     erc20PromiseDone.value = false;
     status.value = "proving";
-    const identity = identityRef.value ? identityRef.value : getWebAuthnIdentity();
+    let identity: string;
+    if (identityRef.value) {
+        identity = identityRef.value;
+    } else {
+        identityRef.value = getWebAuthnIdentity();
+        identity = identityRef.value;
+    }
 
     try {
         const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
