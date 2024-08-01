@@ -60,7 +60,7 @@ export async function broadcastProofTx(txHash: string, payloadIndex: number, con
     return await client.broadcastTx(Uint8Array.from(TxRaw.encode(signedTx).finish()));
 }
 
-export async function broadcastPayloadTx(ecdsaPayload: Uint8Array, smilePayload: string, erc20Payload: string) {
+export async function broadcastPayloadTx(identity: string, ecdsaPayload: Uint8Array, smilePayload: string, erc20Payload: string) {
     const msgAny = {
         typeUrl: "/hyle.zktx.v1.MsgPublishPayloads",
         value: {
@@ -78,6 +78,7 @@ export async function broadcastPayloadTx(ecdsaPayload: Uint8Array, smilePayload:
                     data: window.btoa(smilePayload),
                 },
             ],
+            identity: identity,
         },
     };
     const fee = {
@@ -100,12 +101,9 @@ export async function broadcastPayloadTx(ecdsaPayload: Uint8Array, smilePayload:
 
 export async function checkTxStatuses(hashes: string[]) {
     for (const hash of hashes) {
-        const resp = await client.getTx(hash);
-        if (resp?.code !== 0) {
-            return {
-                status: "failed",
-                error: resp?.rawLog || "unknown error for tx "+hash,
-            };
+        const resp2 =  await checkTxStatus(hash);
+        if (resp2.status == "failed") {
+            return resp2;
         }
     }
     return {
@@ -113,6 +111,18 @@ export async function checkTxStatuses(hashes: string[]) {
     };
 }
 
+export async function checkTxStatus(hash: string) {
+    const resp = await client.getTx(hash);
+    if (resp?.code !== 0) {
+        return {
+            status: "failed",
+            error: resp?.rawLog || "unknown error",
+        };
+    }
+    return {
+        status: "success",
+    };
+}
 export async function ensureContractsRegistered() {
     const checkExists = await fetch(`${getNetworkApiUrl()}/hyle/zktx/v1/contract/smile_token`);
     if ((await checkExists.json()).contract.program_id == "1Q==") {

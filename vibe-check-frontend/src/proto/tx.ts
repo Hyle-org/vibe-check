@@ -19,6 +19,8 @@ export interface Payload {
 
 /** execute a zk-proven state change - request type */
 export interface MsgPublishPayloads {
+  /** Identity is the identity of the TX sender */
+  identity: string;
   /** list of payloads */
   payloads: Payload[];
 }
@@ -136,13 +138,16 @@ export const Payload = {
 };
 
 function createBaseMsgPublishPayloads(): MsgPublishPayloads {
-  return { payloads: [] };
+  return { identity: "", payloads: [] };
 }
 
 export const MsgPublishPayloads = {
   encode(message: MsgPublishPayloads, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.identity !== "") {
+      writer.uint32(10).string(message.identity);
+    }
     for (const v of message.payloads) {
-      Payload.encode(v!, writer.uint32(10).fork()).ldelim();
+      Payload.encode(v!, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
@@ -159,6 +164,13 @@ export const MsgPublishPayloads = {
             break;
           }
 
+          message.identity = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
           message.payloads.push(Payload.decode(reader, reader.uint32()));
           continue;
       }
@@ -172,12 +184,16 @@ export const MsgPublishPayloads = {
 
   fromJSON(object: any): MsgPublishPayloads {
     return {
+      identity: isSet(object.identity) ? globalThis.String(object.identity) : "",
       payloads: globalThis.Array.isArray(object?.payloads) ? object.payloads.map((e: any) => Payload.fromJSON(e)) : [],
     };
   },
 
   toJSON(message: MsgPublishPayloads): unknown {
     const obj: any = {};
+    if (message.identity !== "") {
+      obj.identity = message.identity;
+    }
     if (message.payloads?.length) {
       obj.payloads = message.payloads.map((e) => Payload.toJSON(e));
     }
@@ -189,6 +205,7 @@ export const MsgPublishPayloads = {
   },
   fromPartial<I extends Exact<DeepPartial<MsgPublishPayloads>, I>>(object: I): MsgPublishPayloads {
     const message = createBaseMsgPublishPayloads();
+    message.identity = object.identity ?? "";
     message.payloads = object.payloads?.map((e) => Payload.fromPartial(e)) || [];
     return message;
   },

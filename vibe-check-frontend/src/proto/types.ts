@@ -47,20 +47,14 @@ export interface PayloadMetadata {
   nextState: Uint8Array;
   /** If this payload was verified */
   verified: boolean;
+  /** If this is a success or failure */
+  success: boolean;
 }
 
-/** InnerPayloadTimeout is data to trigger TX timeout. */
-export interface InnerPayloadTimeout {
-  /** Hash of the TX */
-  txHash: Uint8Array;
-  /** Index of the payload in the tx */
-  payloadIndex: number;
-}
-
-/** PayloadTimeout is a list of payloads and their timeouts */
-export interface PayloadTimeout {
-  /** List of payloads and their timeouts */
-  payloads: InnerPayloadTimeout[];
+/** TxTimeout is a list of TXs used to timeout */
+export interface TxTimeout {
+  /** List of transactions to timeout */
+  txs: Uint8Array[];
 }
 
 function createBaseParams(): Params {
@@ -376,6 +370,7 @@ function createBasePayloadMetadata(): PayloadMetadata {
     contractName: "",
     nextState: new Uint8Array(0),
     verified: false,
+    success: false,
   };
 }
 
@@ -395,6 +390,9 @@ export const PayloadMetadata = {
     }
     if (message.verified !== false) {
       writer.uint32(40).bool(message.verified);
+    }
+    if (message.success !== false) {
+      writer.uint32(48).bool(message.success);
     }
     return writer;
   },
@@ -441,6 +439,13 @@ export const PayloadMetadata = {
 
           message.verified = reader.bool();
           continue;
+        case 6:
+          if (tag !== 48) {
+            break;
+          }
+
+          message.success = reader.bool();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -457,6 +462,7 @@ export const PayloadMetadata = {
       contractName: isSet(object.contractName) ? globalThis.String(object.contractName) : "",
       nextState: isSet(object.nextState) ? bytesFromBase64(object.nextState) : new Uint8Array(0),
       verified: isSet(object.verified) ? globalThis.Boolean(object.verified) : false,
+      success: isSet(object.success) ? globalThis.Boolean(object.success) : false,
     };
   },
 
@@ -477,6 +483,9 @@ export const PayloadMetadata = {
     if (message.verified !== false) {
       obj.verified = message.verified;
     }
+    if (message.success !== false) {
+      obj.success = message.success;
+    }
     return obj;
   },
 
@@ -490,29 +499,27 @@ export const PayloadMetadata = {
     message.contractName = object.contractName ?? "";
     message.nextState = object.nextState ?? new Uint8Array(0);
     message.verified = object.verified ?? false;
+    message.success = object.success ?? false;
     return message;
   },
 };
 
-function createBaseInnerPayloadTimeout(): InnerPayloadTimeout {
-  return { txHash: new Uint8Array(0), payloadIndex: 0 };
+function createBaseTxTimeout(): TxTimeout {
+  return { txs: [] };
 }
 
-export const InnerPayloadTimeout = {
-  encode(message: InnerPayloadTimeout, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.txHash.length !== 0) {
-      writer.uint32(10).bytes(message.txHash);
-    }
-    if (message.payloadIndex !== 0) {
-      writer.uint32(16).uint32(message.payloadIndex);
+export const TxTimeout = {
+  encode(message: TxTimeout, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.txs) {
+      writer.uint32(10).bytes(v!);
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): InnerPayloadTimeout {
+  decode(input: _m0.Reader | Uint8Array, length?: number): TxTimeout {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseInnerPayloadTimeout();
+    const message = createBaseTxTimeout();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -521,14 +528,7 @@ export const InnerPayloadTimeout = {
             break;
           }
 
-          message.txHash = reader.bytes();
-          continue;
-        case 2:
-          if (tag !== 16) {
-            break;
-          }
-
-          message.payloadIndex = reader.uint32();
+          message.txs.push(reader.bytes());
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -539,92 +539,24 @@ export const InnerPayloadTimeout = {
     return message;
   },
 
-  fromJSON(object: any): InnerPayloadTimeout {
-    return {
-      txHash: isSet(object.txHash) ? bytesFromBase64(object.txHash) : new Uint8Array(0),
-      payloadIndex: isSet(object.payloadIndex) ? globalThis.Number(object.payloadIndex) : 0,
-    };
+  fromJSON(object: any): TxTimeout {
+    return { txs: globalThis.Array.isArray(object?.txs) ? object.txs.map((e: any) => bytesFromBase64(e)) : [] };
   },
 
-  toJSON(message: InnerPayloadTimeout): unknown {
+  toJSON(message: TxTimeout): unknown {
     const obj: any = {};
-    if (message.txHash.length !== 0) {
-      obj.txHash = base64FromBytes(message.txHash);
-    }
-    if (message.payloadIndex !== 0) {
-      obj.payloadIndex = Math.round(message.payloadIndex);
+    if (message.txs?.length) {
+      obj.txs = message.txs.map((e) => base64FromBytes(e));
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<InnerPayloadTimeout>, I>>(base?: I): InnerPayloadTimeout {
-    return InnerPayloadTimeout.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<TxTimeout>, I>>(base?: I): TxTimeout {
+    return TxTimeout.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<InnerPayloadTimeout>, I>>(object: I): InnerPayloadTimeout {
-    const message = createBaseInnerPayloadTimeout();
-    message.txHash = object.txHash ?? new Uint8Array(0);
-    message.payloadIndex = object.payloadIndex ?? 0;
-    return message;
-  },
-};
-
-function createBasePayloadTimeout(): PayloadTimeout {
-  return { payloads: [] };
-}
-
-export const PayloadTimeout = {
-  encode(message: PayloadTimeout, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    for (const v of message.payloads) {
-      InnerPayloadTimeout.encode(v!, writer.uint32(10).fork()).ldelim();
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): PayloadTimeout {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePayloadTimeout();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.payloads.push(InnerPayloadTimeout.decode(reader, reader.uint32()));
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): PayloadTimeout {
-    return {
-      payloads: globalThis.Array.isArray(object?.payloads)
-        ? object.payloads.map((e: any) => InnerPayloadTimeout.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: PayloadTimeout): unknown {
-    const obj: any = {};
-    if (message.payloads?.length) {
-      obj.payloads = message.payloads.map((e) => InnerPayloadTimeout.toJSON(e));
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<PayloadTimeout>, I>>(base?: I): PayloadTimeout {
-    return PayloadTimeout.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<PayloadTimeout>, I>>(object: I): PayloadTimeout {
-    const message = createBasePayloadTimeout();
-    message.payloads = object.payloads?.map((e) => InnerPayloadTimeout.fromPartial(e)) || [];
+  fromPartial<I extends Exact<DeepPartial<TxTimeout>, I>>(object: I): TxTimeout {
+    const message = createBaseTxTimeout();
+    message.txs = object.txs?.map((e) => e) || [];
     return message;
   },
 };
