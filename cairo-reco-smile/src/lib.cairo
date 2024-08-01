@@ -294,9 +294,10 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     }
 
     let program_output: Array<felt252> = array![result.into()];
+    let success = true;
 
     processHyleOutput(
-        1, initial_state.clone(), initial_state.clone(), identity, 0, payload, program_output,
+        1, initial_state.clone(), initial_state.clone(), identity, 0, payload, success, program_output,
     )
 }
 
@@ -310,6 +311,7 @@ struct HyleOutput {
     identity: ByteArray,
     tx_hash: felt252,
     payload_hash: felt252,
+    success: bool,
     program_outputs: Array<felt252>
 }
 
@@ -337,6 +339,7 @@ fn processHyleOutput(
     identity: ByteArray,
     tx_hash: felt252,
     payload: Array<felt252>,
+    success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
     // Hashing payload
@@ -351,6 +354,7 @@ fn processHyleOutput(
         identity: identity,
         tx_hash: tx_hash,
         payload_hash: payload_hash,
+        success: success,
         program_outputs: program_output,
     };
 

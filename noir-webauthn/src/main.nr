@@ -27,6 +27,7 @@ fn main(
     tx_hash_len: pub u32,
     tx_hash: pub [u8; 43],
     payload_hash: pub Field,
+    success: pub bool,
     program_outputs: pub ProgramOutputs
 ) {
     let client_data_json_hash = prefix_sha256_hash(
@@ -65,6 +66,7 @@ fn main(
     for i in 0..program_outputs.signature.len() {
         signature[i] = program_outputs.signature[i] as Field;
     }
+    assert(success == true);
 }
 
 #[test]
@@ -108,6 +110,7 @@ fn test_webauthn_verification_from_vibe_checker_134() {
     let tx_hash_len = 43;
     let tx_hash = challenge;
     let payload_hash = 0x0d05cdc496bde53c7f93a50ef18b8ff2084c18c65bb2b9cbac7c3b814befa0a3 as Field;
+    let success = true;
 
     main(
         version,
@@ -120,6 +123,7 @@ fn test_webauthn_verification_from_vibe_checker_134() {
         tx_hash_len,
         tx_hash,
         payload_hash,
+        success,
         program_outputs
     );
 }
@@ -154,6 +158,7 @@ fn test_webauthn_verification_from_vibe_checker_243() {
     let tx_hash_len = 43;
     let tx_hash = challenge;
     let payload_hash = 0x2cd4a07375bb18c67225f96dc94a459803676221c55d76cfbb28238e5279c86d as Field;
+    let success = true;
 
     main(
         version,
@@ -166,6 +171,7 @@ fn test_webauthn_verification_from_vibe_checker_243() {
         tx_hash_len,
         tx_hash,
         payload_hash,
+        success,
         program_outputs,
     );
 }
@@ -200,6 +206,7 @@ fn test_webauthn_verification_from_vibe_checker_243_bis() {
     let tx_hash_len = 43;
     let tx_hash = challenge;
     let payload_hash = 0x25c2c8e15ffcf1cfb9193d9663186fe76764564274a65d719b087d972b45fd11 as Field;
+    let success = true;
 
     main(
         version,
@@ -212,6 +219,7 @@ fn test_webauthn_verification_from_vibe_checker_243_bis() {
         tx_hash_len,
         tx_hash,
         payload_hash,
+        success,
         program_outputs,
     );
 }

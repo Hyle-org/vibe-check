@@ -4,18 +4,18 @@ import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
 import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
 import { runSmile, proveSmile, proveERC20Transfer } from "./cairo/prover";
 import { proveECDSA } from "./noir/prover";
-import { setupCosmos, broadcastProofTx, checkTxStatuses, ensureContractsRegistered, broadcastPayloadTx, uint8ArrayToBase64 } from "./cosmos";
+import { setupCosmos, broadcastProofTx, checkTxStatuses, ensureContractsRegistered, broadcastPayloadTx } from "./cosmos";
 import { getBalances } from "./SmileTokenIndexer";
 
-import Logo from "./assets/Hyle_logo.svg";
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
 import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
-import { computeErc20Args, computeErc20Payload, computeSmileArgs, computeSmilePayload } from "./cairo/CairoRunner";
+import { computeErc20Payload, computeSmilePayload } from "./cairo/CairoRunner";
 import { CairoArgs, CairoSmileArgs } from "./cairo/CairoHash";
+import { uint8ArrayToBase64 } from "./utils";
 
 // These are references to HTML elements
 const canvasOutput = ref<HTMLCanvasElement | null>(null);

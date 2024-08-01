@@ -130,9 +130,10 @@ fn main(input: Array<felt252>) -> Array<felt252> {
 
     // Next state compute
     let next_state = compute_state_pedersen_hash(@balances2);
+    let success = true;
 
     processHyleOutput(
-        1, initial_state, next_state, event.to.clone(), 0, payload.clone(), payload.clone()
+        1, initial_state, next_state, event.to.clone(), 0, payload.clone(), success, payload.clone()
     )
 }
 
@@ -146,6 +147,7 @@ struct HyleOutput {
     identity: ByteArray,
     tx_hash: felt252,
     payload_hash: felt252,
+    success: bool,
     program_outputs: Array<felt252>
 }
 
@@ -180,6 +182,7 @@ fn processHyleOutput(
     identity: ByteArray,
     tx_hash: felt252,
     payload: Array<felt252>,
+    success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
     // Hashing payload
@@ -194,6 +197,7 @@ fn processHyleOutput(
         identity: identity,
         tx_hash: tx_hash,
         payload_hash: payload_hash,
+        success: success,
         program_outputs: program_output,
     };
 
@@ -262,6 +266,7 @@ mod tests {
                 21,
                 0, // tx_hash
                 3548605693767248747217834656266941711631630347258916905240365336130726092944, // payload_hash
+                1,
                 7, // program_output
                 0,
                 112568767309172,

@@ -9,6 +9,7 @@ import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { MsgRegisterContract, MsgPublishPayloadProof, MsgPublishPayloads } from "./proto/tx.ts";
 import { hashBalance } from "./cairo/CairoHash";
 import { getNetworkApiUrl } from "./network.ts";
+import { uint8ArrayToBase64 } from "./utils.ts";
 
 const mnemonic =
     "surround miss nominee dream gap cross assault thank captain prosper drop duty group candy wealth weather scale put";
@@ -29,21 +30,6 @@ export async function setupCosmos(address: string) {
             ["/hyle.zktx.v1.MsgRegisterContract", MsgRegisterContract],
         ]),
     }).catch(e => console.log(e));
-}
-
-export function uint8ArrayToBase64(array: Uint8Array): string {
-    if (typeof Buffer !== "undefined") return Buffer.from(array).toString("base64");
-    // Work around call stack issues with large arrays
-    const CHUNK_SIZE = 0x8000;
-    let index = 0;
-    const length = array.length;
-    let result = "";
-    while (index < length) {
-        const end = Math.min(length, index + CHUNK_SIZE);
-        result += String.fromCharCode.apply(null, array.slice(index, end));
-        index = end;
-    }
-    return btoa(result);
 }
 
 export async function broadcastProofTx(txHash: string, payloadIndex: number, contractName: string, proof: string) {
@@ -186,7 +172,7 @@ export async function ensureContractsRegistered() {
 
     // Creation of ECDSA contract
     const b64vKey =
-        "AAAAAgAEAAAAAAIWAAAAFwAAAARJRF8xJwEHlM6ivEfXTveQRhwpeQ5xrWZUNYfqnKaX0vOVffIOvjS+tFG6g5s0XvxMj10iPOdgOLJfHwuQNUeT3sJNLAAAAARJRF8yGk9wMaYWWsjo/1HXvGAeFwN9UO0jxIikwd7EUkKbGtsBgRduMxvM6/Y+XHEepsXnBn8VAUNyIrEVARK3jR7rkgAAAARJRF8zCp+NzWsyvkumC/SSL4pvI3oaZZQW4ULqOyk6NHpLPbconjzQ3bdUVsijAYpDxR7q0WlenQ6neqlzsCbWYNBVRgAAAARJRF80EMepDHkCsKNyfDKgPjoxScoXIrD2p045BL/+tvq92+ADexbDVdQH/1DzsWy+uBukLSGxBrg57OEKSnMu6JcLdAAAAANRXzEYjSYRYxiddjp9fhGaDIw6U1m8LJoh0RQlMeLtCBnBTitOsQANWeTXvrh+9Ej/ZFfAon7hU0MCBKMyFT0l90NDAAAAA1FfMiXJEriaiDjH4tCbSlAWObdGcsgXauf+gTvMWHYrjec8EZVT27t412lS7r9mv/5+Rq4hYxf2okQ14iIYjLQbIeUAAAADUV8zI8l3FKhR8PFen8L5ZP9vZCx+wMyJ1Ky2pK2RCrlv/CElp69+VI3yfWgyx7qlnN3YmKB9tbqiw5ZP41LG9a8p+AAAAANRXzQfe7Zwj2B0clY5SbDC2z360QT2r5+8RBSBidwOtzs6SgxtLjx8aUf5kfnRZfXeFfqzOFN3y2X2yx/BRVGJnV2EAAAADFFfQVJJVEhNRVRJQxob9XnZQUUGapNUyAZa+Xhw11gD8V8XJyG8MapMOguSCjavMK22ieoVXczPlVa+VlzwcUQAMd51IB6p9jz8wrkAAAAFUV9BVVgOmOpBQvJCwqLYPwsc7ulYf2ET+M9UFlIDSweILIuZpBHybIDesRIGdQJvTIrTBuXwQ6It5uFQJbhTqXUFoxGDAAAAA1FfQxdl+SpjklvmtL8nhkJr5R/WulDj8aKXUmWbY5p9AKD9DSP4h58OzS8/bCo6g48VCF/ulkAhSIXDq0p37RAAR0cAAAAKUV9FTExJUFRJQwMfndzQ145ew7VvsiJ9zcNN4lgirwhs+6y34rwzEkBIF7tMuGYDrKEj4vZsyGFf9xqiOKizqXtalmU5DeCLwDAAAAADUV9NAZi3ReCxncAeIGG1ugCAY3R3HntraBXYTWGtYszYaPQFkqO4AXoWSKZq6FZbYvyp4sTipXWKjrHfdAZQBDdumQAAAAZRX1NPUlQUw1kCT+i6z2HM4Xnt/8HSCigqsn4kc2bNvvTVF5PQxCXOcaTRIRWppuFownZs0JITSILK4mDkhEakfN3TNS3gAAAAB1NJR01BXzEjRhW9mbuYiRbEK9uNy44foJXfCSLdfazxQUQZCQSeaAzNkLZSaXOOXiSN/fvK6D6lySJeGv3NnWbg90F3ijlDAAAAB1NJR01BXzIJdaVBo0jKZpdzv4Gj77sw8nsSd2XXJyUYCsP9QeRz3wywKvauBkSniONWT502v9YwDGNvWrFFlwrdeYVHAulNAAAAB1NJR01BXzMAoOSJoX+TOnzaIFpDzGeuoGOnoCNsGil6tS20lK0/Zg8euXK8e/eUqqPnvYRksrEcLRCm8L17mPDB4Y+X01d5AAAAB1NJR01BXzQRMr9DvGpnE1MfPy5TBUIOoGNmUSP4dyI0g3ZTiVd6aCZ1u5LIkdW4S9EfyX7rEwqeXNbaFxtoChSQhNJrHE8KAAAAB1RBQkxFXzEpcdXixMjr+G/FxEI5bZmBpGFgjDCigAI+QTPgCQj6fxBZ4zML9FWbKlbyg2zTuLZBFap6QzLgmP8EPv9H6oHTAAAAB1RBQkxFXzIGT3hMdHOmUou60Ts6UgkJJz62WOq+61Uhte0UrAYQ4giyuGPQjkGS1jyUZ/bCg+YkuVh651Ok6TDwEq3BhA8yAAAAB1RBQkxFXzMaG8L8UBL1btYW+Mc3kdsuqbQbHGNA5SwPw5XNYrsKPyXMbEhi6UQDn+ANS4vkDapgOw0vAXEss15pAvuoVCxkAAAAB1RBQkxFXzQfZZyvt6ZuZut1DvtgpL4w2VQxphhjhRB6v/2mx3A0Gyr+JRElMPjKOUW+74IjOredMguQzcc9m9l/+XU9Zn0OAAAAClRBQkxFX1RZUEURSAx+wPH2BxF+GytWxyQtu0p6frJGHV9qTtxUfGXirRy/4B3FzF0CtvHuhof6+lFM6wBTskjzCmJlB34QYCpZAAAAAAAA";
+        "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";
     const vKey = Uint8Array.from(Buffer.from(b64vKey, "base64"));
     msgAny = {
         typeUrl: "/hyle.zktx.v1.MsgRegisterContract",

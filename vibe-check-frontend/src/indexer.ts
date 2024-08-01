@@ -150,20 +150,12 @@ class JSONRpcClient extends WebSocketConnection {
     }
 }
 
-export function base64ToUint8Array(base64: string): Uint8Array {
-    const binaryString = atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-}
 
 import { ref } from "vue";
 import { MsgRegisterContract } from "./proto/tx.ts";
 import { Tx as CosmosTx } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { getNetworkWebsocketUrl } from "./network.ts";
+import { base64ToUint8Array } from "./utils.ts";
 
 export function GetAllStateChanges() {
     let messages = ref(
