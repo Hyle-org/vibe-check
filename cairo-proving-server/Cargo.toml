@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cairo-verifier = { git = "https://github.com/Hyle-org/hyle", rev = "96424bc" }
+cairo-verifier = { git = "https://github.com/Hyle-org/hyle" }
 tokio = { version = "1.37.0", features = ["full"] }
 axum = { version = "0.7.5", features = ["macros", "multipart"] }
 axum-extra = { version = "0.9.3", features = ["query"] }

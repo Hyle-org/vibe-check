@@ -52,7 +52,7 @@ fn main(
         hashed_data
     );
 
-    assert(valid_signature);
+    assert(success == valid_signature);
     assert(version == 1);
     assert(tx_hash_len == 43);
     assert(identity_len == 56);
@@ -66,7 +66,6 @@ fn main(
     for i in 0..program_outputs.signature.len() {
         signature[i] = program_outputs.signature[i] as Field;
     }
-    assert(success == true);
 }
 
 #[test]

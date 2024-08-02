@@ -404,7 +404,7 @@ const ProveAndSendProofsTx = async () => {
         ]);
         if (txStatus.status === "success") {
             status.value = "tx_success";
-            txHash.value = erc20Resp.transactionHash; // il faut mettre les 3 tx dedans
+            txHash.value = erc20Resp.transactionHash;
         } else {
             status.value = "tx_failure";
             error.value = txStatus.error || "Unknown error";
