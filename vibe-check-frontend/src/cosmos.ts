@@ -129,12 +129,10 @@ export async function checkTxStatus(hash: string) {
     };
 }
 export async function ensureContractsRegistered() {
-    console.log("Ensuring contracts are registered");
     const checkExists = await fetch(`${getNetworkApiUrl()}/hyle/zktx/v1/contract/smile_token`);
     if ((await checkExists.json())?.contract?.program_id == "1Q==") {
         return;
     }
-    console.log("here");
 
     const initialBalanceHash = hashBalance([
         {
