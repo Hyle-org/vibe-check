@@ -29,14 +29,14 @@ export async function setupCosmos(address: string) {
             ["/hyle.zktx.v1.MsgPublishPayloadProof", MsgPublishPayloadProof],
             ["/hyle.zktx.v1.MsgRegisterContract", MsgRegisterContract],
         ]),
-    }).catch(e => console.log(e));
+    }).catch((e) => console.log(e));
 }
 
 export async function broadcastProofTx(txHash: string, payloadIndex: number, contractName: string, proof: string) {
     const msgAny = {
         typeUrl: "/hyle.zktx.v1.MsgPublishPayloadProof",
         value: {
-            txHash: Buffer.from(txHash, 'hex').toString('base64'),
+            txHash: Buffer.from(txHash, "hex").toString("base64"),
             payloadIndex: payloadIndex,
             contractName: contractName,
             proof: proof,
@@ -60,7 +60,12 @@ export async function broadcastProofTx(txHash: string, payloadIndex: number, con
     return await client.broadcastTx(Uint8Array.from(TxRaw.encode(signedTx).finish()));
 }
 
-export async function broadcastPayloadTx(identity: string, ecdsaPayload: string, smilePayload: string, erc20Payload: string) {
+export async function broadcastPayloadTx(
+    identity: string,
+    ecdsaPayload: string,
+    smilePayload: string,
+    erc20Payload: string,
+) {
     const msgAny = {
         typeUrl: "/hyle.zktx.v1.MsgPublishPayloads",
         value: {
@@ -101,7 +106,7 @@ export async function broadcastPayloadTx(identity: string, ecdsaPayload: string,
 
 export async function checkTxStatuses(hashes: string[]) {
     for (const hash of hashes) {
-        const resp2 =  await checkTxStatus(hash);
+        const resp2 = await checkTxStatus(hash);
         if (resp2.status == "failed") {
             return resp2;
         }
@@ -124,10 +129,12 @@ export async function checkTxStatus(hash: string) {
     };
 }
 export async function ensureContractsRegistered() {
+    console.log("Ensuring contracts are registered");
     const checkExists = await fetch(`${getNetworkApiUrl()}/hyle/zktx/v1/contract/smile_token`);
-    if ((await checkExists.json()).contract.program_id == "1Q==") {
+    if ((await checkExists.json())?.contract?.program_id == "1Q==") {
         return;
     }
+    console.log("here");
 
     const initialBalanceHash = hashBalance([
         {

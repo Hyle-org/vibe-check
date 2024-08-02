@@ -1,6 +1,11 @@
-process.env["DEV"] = true;
-
-import { broadcastPayloadTx, broadcastProofTx, checkTxStatus, checkTxStatuses, ensureContractsRegistered, setupCosmos } from "../src/cosmos";
+import {
+    broadcastPayloadTx,
+    broadcastProofTx,
+    checkTxStatus,
+    checkTxStatuses,
+    ensureContractsRegistered,
+    setupCosmos,
+} from "../src/cosmos";
 import { proveERC20Transfer, proveSmile } from "../src/cairo/prover.ts";
 import * as fs from "fs";
 import { uint8ArrayToBase64 } from "../src/utils.ts";
@@ -13,7 +18,11 @@ async function checkDigest() {
 }
 
 let identity = "c59b18d3bdaccb4d689048559a9bb6e8265293bf.ecdsa_secp256r1";
-let signature = [ 80, 114, 197, 245, 128, 150, 206, 160, 135, 105, 51, 205, 42, 143, 25, 53, 119, 97, 166, 196, 95, 98, 53, 63, 168, 171, 63, 85, 41, 42, 196, 134, 26, 198, 126, 179, 109, 99, 41, 92, 86, 45, 240, 238, 196, 106, 77, 219, 146, 196, 183, 80, 225, 170, 66, 218, 169, 244, 230, 252, 61, 213, 29, 201];
+let signature = [
+    80, 114, 197, 245, 128, 150, 206, 160, 135, 105, 51, 205, 42, 143, 25, 53, 119, 97, 166, 196, 95, 98, 53, 63, 168,
+    171, 63, 85, 41, 42, 196, 134, 26, 198, 126, 179, 109, 99, 41, 92, 86, 45, 240, 238, 196, 106, 77, 219, 146, 196,
+    183, 80, 225, 170, 66, 218, 169, 244, 230, 252, 61, 213, 29, 201,
+];
 let smileTokenProof: Uint8Array;
 let smileProof: Uint8Array;
 let smileTokenPayload: string;
@@ -26,7 +35,7 @@ smilePayload = fs.readFileSync("./proofs/smile.payload", "utf-8");
 
 smileTokenProof = new Uint8Array(fs.readFileSync("./proofs/smile_token.proof", null));
 smileProof = new Uint8Array(fs.readFileSync("./proofs/smile.proof", null));
-ecdsaProof = fs.readFileSync("./proofs/ecdsa.json", "utf-8")
+ecdsaProof = fs.readFileSync("./proofs/ecdsa.json", "utf-8");
 
 await cosmos;
 await ensureContractsRegistered();
@@ -45,33 +54,22 @@ let payloadResp = await broadcastPayloadTx(
 // Check that Tx is successful
 const txStatus = await checkTxStatus(payloadResp.transactionHash);
 if (txStatus.status === "success") {
-    console.log("PayloadTx successful. txHash: ", payloadResp.transactionHash)
+    console.log("PayloadTx successful. txHash: ", payloadResp.transactionHash);
 } else {
-    console.log("PayloadTx failed. txHash: ", payloadResp.transactionHash)
+    console.log("PayloadTx failed. txHash: ", payloadResp.transactionHash);
     console.log(txStatus.error || "Unknown error");
-    process.exit()
+    process.exit();
 }
 
 // Send the proofs transactions
-const ecdsaResp = await broadcastProofTx(
-    payloadResp.transactionHash,
-    0,
-    "ecdsa_secp256r1",
-    btoa(ecdsaProof)
-);
+const ecdsaResp = await broadcastProofTx(payloadResp.transactionHash, 0, "ecdsa_secp256r1", btoa(ecdsaProof));
 const erc20Resp = await broadcastProofTx(
     payloadResp.transactionHash,
     1,
     "smile_token",
-    uint8ArrayToBase64(smileTokenProof)
+    uint8ArrayToBase64(smileTokenProof),
 );
-const smileResp = await broadcastProofTx(
-    payloadResp.transactionHash,
-    2,
-    "smile",
-    uint8ArrayToBase64(smileProof)
-);
-
+const smileResp = await broadcastProofTx(payloadResp.transactionHash, 2, "smile", uint8ArrayToBase64(smileProof));
 
 // Check the status of the proofs TX
 const proofTxStatus = await checkTxStatuses([
@@ -80,17 +78,17 @@ const proofTxStatus = await checkTxStatuses([
     smileResp.transactionHash,
 ]);
 if (proofTxStatus.status === "success") {
-    console.log("PayloadTx successful. txHashes: ", payloadResp.transactionHash)
-    console.log("ecdsa: ", ecdsaResp.transactionHash)
-    console.log("erc20: ", erc20Resp.transactionHash)
-    console.log("smile: ", smileResp.transactionHash)
+    console.log("PayloadTx successful. txHashes: ", payloadResp.transactionHash);
+    console.log("ecdsa: ", ecdsaResp.transactionHash);
+    console.log("erc20: ", erc20Resp.transactionHash);
+    console.log("smile: ", smileResp.transactionHash);
 } else {
-    console.log("PayloadTx failed.")
-    console.log("ecdsa: ", ecdsaResp.transactionHash)
-    console.log("erc20: ", erc20Resp.transactionHash)
-    console.log("smile: ", smileResp.transactionHash)
+    console.log("PayloadTx failed.");
+    console.log("ecdsa: ", ecdsaResp.transactionHash);
+    console.log("erc20: ", erc20Resp.transactionHash);
+    console.log("smile: ", smileResp.transactionHash);
     console.log(txStatus.error || "Unknown error");
-    process.exit()
+    process.exit();
 }
 
 await checkDigest();
