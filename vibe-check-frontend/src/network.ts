@@ -1,4 +1,4 @@
-export const network = import.meta.env.DEV ? "localhost" : "devnet";
+export const network = import.meta.env.PROD ? "devnet" : "localhost";
 
 export const getNetworkApiUrl = () => {
     return {

@@ -34,6 +34,8 @@ noirInput.next_state = [0, 0, 0, 0];
 noirInput.identity_len = 56;
 noirInput.identity = "c59b18d3bdaccb4d689048559a9bb6e8265293bf.ecdsa_secp256r1";
 noirInput.tx_hash_len = 43;
+noirInput.payload_hash = 0;
+noirInput.success = 1;
 noirInput.tx_hash = [77,68,69,121,77,122,81,49,78,106,99,52,79,87,70,105,89,50,82,108,90,106,65,120,77,106,77,48,78,84,89,51,79,68,108,104,89,109,78,107,90,87,89,];
 noirInput.program_outputs = program_outputs;
 

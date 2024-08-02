@@ -2,7 +2,9 @@ use dep::std;
 
 pub fn prefix_sha256_hash<N>(prefix_length: u8, input: [u8; N]) -> [u8; 32] {
     let mut result = [0; 32];
-    assert([1, 2, 3, 113, 114, 133, 134, 156, 242, 243].any(|x| x == prefix_length), "Length is not supported");
+    assert(
+        [1, 2, 3, 113, 114, 133, 134, 156, 242, 243].any(|x| x == prefix_length), "Length is not supported"
+    );
     if prefix_length == 1 {
         result = std::hash::sha256(prefix(input, [0; 1]));
     }
@@ -36,7 +38,6 @@ pub fn prefix_sha256_hash<N>(prefix_length: u8, input: [u8; N]) -> [u8; 32] {
     result
 }
 
-
 pub fn concatenate_arrays(a: [u8; 37], b: [u8; 32]) -> [u8; 69] {
     let mut result = [0; 69];
     for i in 0..37 {
@@ -63,10 +64,9 @@ pub fn check_pubkey_matches_identity(pub_key_x: [u8; 32], pub_key_y: [u8; 32], i
     // identity is the last 20bytes of the address.
     // Assert that there is a match between identity provided and identity computed from pubkeys
     for k in 0..20 {
-        assert(address[12 + k] == identity.from_hex_to_uint_slice(2*k, 2*k + 2) as u8);
+        assert(address[12 + k] == identity.from_hex_to_uint_slice(2 * k, 2 * k + 2) as u8);
     }
 }
-
 
 fn prefix<N, M>(input: [u8; N], mut result: [u8; M]) -> [u8; M] {
     for i in 0..M {
