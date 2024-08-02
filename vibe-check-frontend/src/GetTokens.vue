@@ -325,9 +325,9 @@ const signAndSendPayloadTx = async () => {
         // Send the transaction
         payloadResp = await broadcastPayloadTx(
             identity,
-            Uint8Array.from(webAuthnValues.signature), // ATM we don't process noir payload. This value might change in the future
-            smilePayload,
-            erc20Payload,
+            uint8ArrayToBase64(webAuthnValues.signature), // ATM we don't process noir payload. This value might change in the future
+            window.btoa(smilePayload),
+            window.btoa(erc20Payload),
         );
 
         console.log("PayloadTx: ", payloadResp.transactionHash)

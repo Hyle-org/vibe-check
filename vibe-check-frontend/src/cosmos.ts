@@ -60,22 +60,22 @@ export async function broadcastProofTx(txHash: string, payloadIndex: number, con
     return await client.broadcastTx(Uint8Array.from(TxRaw.encode(signedTx).finish()));
 }
 
-export async function broadcastPayloadTx(identity: string, ecdsaPayload: Uint8Array, smilePayload: string, erc20Payload: string) {
+export async function broadcastPayloadTx(identity: string, ecdsaPayload: string, smilePayload: string, erc20Payload: string) {
     const msgAny = {
         typeUrl: "/hyle.zktx.v1.MsgPublishPayloads",
         value: {
             payloads: [
                 {
                     contractName: "ecdsa_secp256r1",
-                    data: uint8ArrayToBase64(ecdsaPayload), // ATM we don't process noir payload. This value might change in the future
+                    data: ecdsaPayload, // ATM we don't process noir payload. This value might change in the future
                 },
                 {
                     contractName: "smile_token",
-                    data: window.btoa(erc20Payload),
+                    data: erc20Payload,
                 },
                 {
                     contractName: "smile",
-                    data: window.btoa(smilePayload),
+                    data: smilePayload,
                 },
             ],
             identity: identity,
