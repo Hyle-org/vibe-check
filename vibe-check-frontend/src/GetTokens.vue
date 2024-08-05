@@ -129,7 +129,7 @@ const activateCamera = async () => {
             lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
             // We shall only process detection if at least one face has been detected
             if (lastDetections.value.length > 0) {
-                var score =  lastDetections.value[0].score.toFixed(2);
+                var score = lastDetections.value[0].score.toFixed(2);
                 var resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
 
                 var canvas = canvasOutput.value!;
@@ -322,6 +322,15 @@ const signAndSendPayloadTx = async () => {
         };
         const erc20Payload = computeErc20Payload(erc20Args);
 
+        await new Promise((resolve, reject) => {
+            const ok = window.confirm("Because of WASM limitations, Vibe Check isn't able to generate proofs client-side for Giza. Your image will be sent to Hylé. If you're not OK with that, ask a friend to smile instead !");
+            if (ok) {
+                resolve(null);
+            } else {
+                reject("User didn't want to send the image to Hylé");
+            }
+        });
+
         // Send the transaction
         payloadResp = await broadcastPayloadTx(
             identity,
@@ -433,8 +442,10 @@ const vTriggerScroll = {
         <h1 class="text-center my-4">Vibe Check</h1>
         <hr />
         <div class="text-center my-4 explainer">
-            <p class="my-4">Vibe Check is a zkML & WebAuthn Powered zkApp asserting a user has smiled and awarding test tokens on Hylé!</p>
-            <p class="my-4 smaller">This is a test project! Don't take it too seriously. Code can be found on our <a href="https://github.com/Hyle-org/vibe-check">github</a></p>
+            <p class="my-4">Vibe Check is a zkML & WebAuthn Powered zkApp asserting a user has smiled and awarding test
+                tokens on Hylé!</p>
+            <p class="my-4 smaller">This is a test project! Don't take it too seriously. Code can be found on our <a
+                    href="https://github.com/Hyle-org/vibe-check">github</a></p>
         </div>
         <template v-if="screen == 'start'">
             <div class="flex flex-col justify-center h-[400px] max-h-[50vh] max-w-[50rem] m-auto img-background p-10">
@@ -456,7 +467,8 @@ const vTriggerScroll = {
                 </button>
             </div>
             <div class="text-center my-4 explainer">
-                <p class="smaller">All code execution happens client-side and proofs are generated using <a href=https://noir-lang.org/>Noir</a>, <a href="https://www.cairo-lang.org">Cairo</a> and <a href="https://www.gizatech.xyz">Giza</a>.</p>
+                <p class="smaller">Proofs are generated using <a href=https://noir-lang.org>Noir</a>, <a
+                        href="https://www.cairo-lang.org">Cairo</a> and <a href="https://www.gizatech.xyz">Giza</a>.</p>
             </div>
         </template>
         <template v-else>
@@ -500,8 +512,7 @@ const vTriggerScroll = {
                         <div v-else-if="screen === 'payload' && status !== 'failed_at_payload'"
                             class="text-white p-8 bg-black bg-opacity-50 rounded-xl overflow-hidden">
                             <div :class="`relative scrollOnSuccess ${status}`">
-                                <div v-if="status === 'payload'"
-                                    class="flex flex-col justify-center items-center my-8">
+                                <div v-if="status === 'payload'" class="flex flex-col justify-center items-center my-8">
                                     <i class="spinner"></i>
                                     <p class="italic">...Sending transaction...</p>
                                 </div>
@@ -512,18 +523,21 @@ const vTriggerScroll = {
                                 </div>
                                 <div v-if="status === 'payload_tx_success'"
                                     class="flex flex-col justify-center items-center py-16" v-trigger-scroll>
-                                    <p class="text-center font-semibold font-anton uppercase mb-2">TX successful</p>
-                                    <p class="text-center text-sm font-mono">You've earned 100 devnet Hylé. Good vibes!
-                                    </p>
+                                    <p class="text-center font-semibold font-anton uppercase mb-2">Transaction sent</p>
+                                    <p class="text-center text-sm font-mono">Once yourt TX is proven, you will earn 100
+                                        tokens on Hylé.</p>
                                     <p class="text-center text-sm font-mono my-4">Check it out on
-                                        <a :href="HyleouApi.transactionDetails(payloadsTxHash)">
+                                        <a :href="HyleouApi.transactionDetails(payloadsTxHash!)">
                                             <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
                                         </a><br>or tweet about it
                                         !
                                     </p>
-                                    <p class="text-center text-sm font-mono my-4"> Let's prove it to settle your Tx</p>
-                                    <button @click="ProveAndSendProofsTx"> Prove locally (heavy ressource consumption) </button>
-                                    <button @click="ProveAndSendProofsTx"> Prove remotely (no full privacy) </button>
+                                    <p class="text-center text-sm font-mono my-4">Anyone can generate proofs of your
+                                        transaction, but you can also do it yourself:
+                                    </p>
+                                    <button class="my-2" @click="ProveAndSendProofsTx">Prove remotely (no privacy)
+                                    </button>
+                                    <button disabled>Prove locally (unavailable for now)</button>
                                 </div>
                                 <div v-if="status === 'payload_tx_failure'"
                                     class="flex flex-col justify-center items-center my-8">
@@ -543,8 +557,9 @@ const vTriggerScroll = {
                                 <div class="flex flex-col gap-2">
                                     <p class="flex items-center">Generating ECDSA signature proof:
                                         <i v-if="!ecdsaPromiseDone" class="spinner"></i>
-                                        <span v-else>✅</span>
-                                        <span class="text-sm mt-1 text-opacity-80 italic">(this takes a while)</span>
+                                        <span v-else>✅</span><br>
+                                        <span class="text-sm mt-1 text-opacity-80 italic">(This is actually done
+                                            client-side so it takes a while)</span>
                                     </p>
                                     <p class="flex items-center">Generating proof of smile: <i v-if="!smilePromiseDone"
                                             class="spinner"></i><span v-else>✅</span></p>
@@ -592,10 +607,10 @@ const vTriggerScroll = {
                 </div>
             </div>
         </template>
-        
-        <LeaderBoard :identity="identityRef"/>
+
+        <LeaderBoard :identity="identityRef" />
     </div>
-    
+
 </template>
 
 
@@ -603,10 +618,12 @@ const vTriggerScroll = {
 .explainer {
     margin: 2.5em;
 }
-.explainer > p {
+
+.explainer>p {
     font-family: Anton, sans-serif;
 }
-.explainer > p.smaller {
+
+.explainer>p.smaller {
     font-size: 1em;
 }
 
