@@ -31,7 +31,16 @@ export default defineConfig({
         topLevelAwait(),
         vue(),
         copy({
-            targets: [{ src: "node_modules/**/*.wasm", dest: "node_modules/.vite/deps" }],
+            targets: [
+                {
+                    src: "node_modules/@aztec/**/*.wasm",
+                    dest: "node_modules/.vite/deps",
+                },
+                {
+                    src: "node_modules/@noir-lang/**/*.wasm",
+                    dest: "node_modules/.vite/deps",
+                },
+            ],
             copySync: true,
             hook: "buildStart",
         }),

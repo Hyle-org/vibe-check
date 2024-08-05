@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { SmileTokenBalances } from "./SmileTokenIndexer";
+import { getBalances } from "./SmileTokenIndexer";
 
 defineProps<{
     identity?: string
@@ -9,24 +9,24 @@ defineProps<{
 let score_max: number;
 
 const sortedBalances = computed(() => {
-    let temp = Object.entries(SmileTokenBalances.value)
-        .sort((a, b) => b[1] - a[1])
-        .filter((balance) => balance[0] != "faucet");
-    score_max = Math.max(...temp.map((elem) => elem[1]));;
+    let temp = getBalances()
+        .sort((a, b) => b.amount - a.amount)
+        .filter((balance) => balance.name != "faucet");
+    score_max = Math.max(...temp.map((elem) => elem.amount));
     return temp
 });
 
 const progress_bar = (score: number, max: number, nb_bars = 15) => {
     const current_percent = score / max * nb_bars;
     let res = "";
-	for (let n = 1; n < nb_bars + 1; n++) {
+    for (let n = 1; n < nb_bars + 1; n++) {
         if (current_percent < n) {
             res += "░"; // alt-176 
         }
         else {
             res += "▓"; // alt-178
         }
-	}
+    }
 
     return res;
 }
@@ -41,13 +41,15 @@ const progress_bar = (score: number, max: number, nb_bars = 15) => {
         <h1 class="leaderboard_title">Leaderboard</h1>
         <hr />
         <ul class="results">
-            <li v-for="(balance, index) in sortedBalances" :key="balance[0] + '-' + index" :class="balance[0] === identity ? 'identity' : 'else'"><strong>#{{ index + 1 }}</strong> {{ balance[0] }} - {{ balance[1] }} {{ progress_bar(balance[1], score_max) }}</li>
+            <li v-for="(balance, index) in sortedBalances" :key="balance.name + '-' + index"
+                :class="balance.name === identity ? 'identity' : 'else'"><strong>#{{ index + 1 }}</strong> {{
+            balance.name
+        }} - {{ balance.amount }} {{ progress_bar(balance.amount, score_max) }}</li>
         </ul>
     </div>
 </template>
 
 <style>
-
 .leaderboard_title {
     text-align: center;
     margin: 0.5em;
@@ -60,11 +62,11 @@ const progress_bar = (score: number, max: number, nb_bars = 15) => {
 }
 
 .identity {
-    background-color:white;
+    background-color: white;
     color: #E0482E;
 }
 
-ul > li {
+ul>li {
     font-family: monospace;
     list-style: none;
     padding: 0.5em;
@@ -78,5 +80,5 @@ ul > li {
     right: 0;
     padding: 0.5em;
     margin: 0;
-  }
+}
 </style>
