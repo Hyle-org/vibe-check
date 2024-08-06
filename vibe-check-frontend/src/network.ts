@@ -1,11 +1,4 @@
-import { watchEffect } from "vue";
-import { network as hyleNetwork } from "hyle-js";
-
 export const network = import.meta.env.PROD ? "devnet" : "localhost";
-
-watchEffect(() => {
-    hyleNetwork.value = network;
-});
 
 export const getNetworkApiUrl = () => {
     return {
