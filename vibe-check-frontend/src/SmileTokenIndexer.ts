@@ -1,4 +1,6 @@
 import { reactive, ref, watchEffect } from "vue";
+import { Erc20Parser, TransactionsStore } from "hyle-js";
+import { network } from "./network";
 
 export function getBalances(): { name: string; amount: number }[] {
     return Object.entries(state.value.balancesSettled).map(([name, amount]) => ({ name, amount }));
@@ -10,10 +12,7 @@ export type BalanceChange = {
     value: number;
 };
 
-import { Erc20Parser, TransactionData } from "hyle-js";
-import { network } from "./network";
-
-const txData = reactive(new TransactionData());
+const txData = reactive(new TransactionsStore(network));
 const state = ref(new Erc20Parser("smile_token"));
 
 watchEffect(() => {
@@ -31,4 +30,4 @@ watchEffect(() => {
     });
 });
 
-txData.loadContractTxs(network, "smile_token");
+txData.loadContractTxs("smile_token");
