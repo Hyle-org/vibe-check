@@ -75,8 +75,8 @@ ul>li {
 
 #address {
     font-family: monospace;
-    position: absolute;
-    top: 0;
+    position: fixed;
+    bottom: 0;
     right: 0;
     padding: 0.5em;
     margin: 0;
