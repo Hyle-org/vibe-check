@@ -169,6 +169,7 @@ const takeScreenshot = async () => {
         const displaySize = { width: canvas.width, height: canvas.height }
         const resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
         faceApi.draw.drawDetections(canvas, resizedDetections);
+        (videoFeed.value!.srcObject as MediaStream).getTracks().forEach(track => track.stop());
         status.value = "processing";
 
         const zoomingPromise = zoomInOnBox(canvas, screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);

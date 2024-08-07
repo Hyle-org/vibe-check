@@ -2,25 +2,18 @@
 import Socials from "./components/Socials.vue";
 import { computed, reactive, ref } from "vue";
 import { network } from "./network";
-import { MsgPublishPayloads, TransactionsStore, getParsedTx, deserByteArray, getNetworkRpcUrl } from "hyle-js";
-import { getBalances } from "./SmileTokenIndexer";
+import { MsgPublishPayloads, getParsedTx, deserByteArray, getNetworkRpcUrl } from "hyle-js";
+import { allTransactions, getBalances, getBalancesAtTx } from "./SmileTokenIndexer";
 
-const txData = reactive(new TransactionsStore(network));
 
 const parsedTransactions = computed(() => {
-    const ret = {};
-    for (const txHash in txData.transactionData) {
-        if (txData.transactionData[txHash].type)
-            ret[txHash] = getParsedTx(txData.transactionData[txHash]);
+    const ret = {} as Record<string, MsgPublishPayloads>;
+    for (const tx of allTransactions.value) {
+        if (tx.type)
+            ret[tx.hash] = getParsedTx(tx);
     }
     return ret;
 })
-
-txData.loadContractTxs("smile_token").then(() => {
-    Object.keys(txData.transactionData).forEach(txHash => {
-        txData.loadTransactionData(txHash);
-    });
-});
 
 function getPayload(txHash: string, contract: string) {
     const data = parsedTransactions.value?.[txHash] as MsgPublishPayloads | undefined;
@@ -28,6 +21,7 @@ function getPayload(txHash: string, contract: string) {
         return undefined;
     return data.payloads.find(x => x.contractName === contract)?.data;
 }
+
 
 function parseECDSAPayload(data?: Uint8Array) {
     if (!data)
@@ -112,7 +106,7 @@ const ProveAndSendProofsTx = async (txHash: string) => {
     const amount = parseInt(felts.slice(-1)[0]);
 
     const erc20Args = {
-        balances: getBalances(),
+        balances: getBalancesAtTx(txHash),
         from: from,
         to: to,
         amount: amount,
@@ -145,21 +139,21 @@ const ProveAndSendProofsTx = async (txHash: string) => {
             "ecdsa_secp256r1",
             window.btoa(await ecdsaPromise)
         );
-        const erc20Resp = await broadcastProofTx(
-            txHash,
-            1,
-            "smile_token",
-            uint8ArrayToBase64(await erc20Promise)
-        );
         const smileResp = await broadcastProofTx(
             txHash,
-            2,
+            1,
             "smile",
             uint8ArrayToBase64(await smilePromise)
         );
+        const erc20Resp = await broadcastProofTx(
+            txHash,
+            2,
+            "smile_token",
+            uint8ArrayToBase64(await erc20Promise)
+        );
         console.log("ecdsaProofTx: ", ecdsaResp.transactionHash)
-        console.log("erc20ProofTx: ", erc20Resp.transactionHash)
         console.log("smileProofTx: ", smileResp.transactionHash)
+        console.log("erc20ProofTx: ", erc20Resp.transactionHash)
         // Switch to waiter view
         status.value = "checking_tx";
 
@@ -169,8 +163,8 @@ const ProveAndSendProofsTx = async (txHash: string) => {
         // Check the status of the TX
         const txStatus = await checkTxStatuses([
             ecdsaResp.transactionHash,
-            erc20Resp.transactionHash,
             smileResp.transactionHash,
+            erc20Resp.transactionHash,
         ]);
         if (txStatus.status === "success") {
             status.value = "tx_success";
@@ -198,7 +192,7 @@ const ProveAndSendProofsTx = async (txHash: string) => {
             <p>Some of these transactions may not be proven yet, feel free to do it now !</p>
         </div>
         <div class="flex flex-col gap-2 mb-8">
-            <div class="tx" v-for="tx in txData.transactionData" :key="tx.hash">
+            <div class="tx" v-for="tx in allTransactions" :key="tx.hash">
                 <div class="w-16 px-4 py-1 border-r-2">
                     <p>{{ tx.height }}</p>
                 </div>
