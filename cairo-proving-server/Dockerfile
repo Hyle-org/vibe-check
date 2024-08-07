@@ -5,7 +5,7 @@ RUN apt-get update
 RUN apt-get install libclang-dev -y
 
 COPY . .
-RUN RUSTFLAGS='-C target-feature=+crt-static' cargo build --release --target x86_64-unknown-linux-gnu
+RUN RUSTFLAGS='-C target-feature=+crt-static' cargo build --no-default-features --release --target x86_64-unknown-linux-gnu
 
 FROM alpine:latest
 WORKDIR /
