@@ -305,6 +305,7 @@ const signAndSendPayloadTx = async () => {
     try {
         const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
         webAuthnValues = await signChallengeWithWebAuthn(challenge);
+        webAuthnValues.identity = identity;
 
         // Start locally proving that we are who we claim to be by signing the transaction hash
         // Send the proof of smile to Giza or something
