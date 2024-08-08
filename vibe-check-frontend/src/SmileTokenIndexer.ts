@@ -11,7 +11,7 @@ export function getBalancesAtTx(txHash: string) {
     if (lastIndex === -1) return [];
     const txs = allTransactions.value.slice(0, lastIndex);
     const contract = new Erc20Parser("smile_token");
-    contract.balancesSettled["faucet"] = 1000000;
+    contract.balancesPending["faucet"] = 1000000;
     txs.forEach((tx) => {
         if (!tx.type) return;
         contract.consumeTx(tx);
