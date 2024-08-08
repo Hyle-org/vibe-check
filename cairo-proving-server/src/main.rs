@@ -7,6 +7,7 @@ use axum::Router;
 use log::info;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use tower::limit::ConcurrencyLimitLayer;
 use tower_http::cors::CorsLayer;
 
 mod endpoints;
@@ -21,6 +22,7 @@ async fn main() -> Result<()> {
 
     let routes = Router::new()
         .route("/prove", post(endpoints::prove_handler))
+        .layer(ConcurrencyLimitLayer::new(1))
         .layer(CorsLayer::permissive())
         .layer(DefaultBodyLimit::disable()) // Danger, on limite plus la taille
         .route("/verify", post(endpoints::verify_handler));
