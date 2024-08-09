@@ -10,6 +10,7 @@ use tokio::net::TcpListener;
 use tower::limit::ConcurrencyLimitLayer;
 use tower_http::cors::CorsLayer;
 
+mod config;
 mod endpoints;
 mod logger;
 
@@ -17,30 +18,34 @@ mod logger;
 async fn main() -> Result<()> {
     setup_logger().context("Setup logger")?;
 
-    info!("Starting Cairo Http!");
-    info!("0.0.0.0:3000");
+    let config = config::Config::new();
 
-    let routes = Router::new()
+    info!("Starting Cairo HTTP with:\n{:#?}", config);
+
+    let mut routes = Router::new()
         .route("/prove", post(endpoints::prove_handler))
-        .layer(ConcurrencyLimitLayer::new(1))
         .layer(CorsLayer::permissive())
         .layer(DefaultBodyLimit::disable()) // Danger, on limite plus la taille
         .route("/verify", post(endpoints::verify_handler));
 
     // If there is a prefix env variable, we add it to the routes
-    let app = if let Ok(prefix) = std::env::var("PREFIX") {
-        Router::new().nest(prefix.as_str(), routes)
-    } else {
-        routes
+    if let Some(prefix) = config.routes_prefix {
+        routes = Router::new().nest(prefix.as_str(), routes)
     }
-    .route("/health", get(endpoints::health_handler));
+
+    // Set concurrency limit
+    if let Some(cl) = config.concurrency_limit {
+        routes = routes.layer(ConcurrencyLimitLayer::new(cl));
+    }
+
+    routes = routes.route("/health", get(endpoints::health_handler));
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.server_port));
     let tcp_listener = TcpListener::bind(addr).await?;
 
-    axum::serve(tcp_listener, app.into_make_service())
+    axum::serve(tcp_listener, routes.into_make_service())
         .await
         .context("Starting http server")
 }
