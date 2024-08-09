@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import path from "path";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import vue from "@vitejs/plugin-vue";
 import copy from "rollup-plugin-copy";
@@ -26,6 +27,11 @@ export default defineConfig({
         sourcemap: false,
         minify: true,
         target: "esnext",
+    },
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "./src"),
+        },
     },
     plugins: [
         topLevelAwait(),

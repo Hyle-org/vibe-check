@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { getBalances } from "./SmileTokenIndexer";
+import { getBalances } from "@/smart_contracts/SmileTokenIndexer";
 
 defineProps<{
     identity?: string
