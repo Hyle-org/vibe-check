@@ -84,7 +84,6 @@ async function computePayloadsAndProve(txHash: string) {
         to: to,
         amount: amount,
     } as CairoArgs;
-    console.log(erc20Args);
 
     const smileArgs = {
         identity: getIdentity(txHash),
