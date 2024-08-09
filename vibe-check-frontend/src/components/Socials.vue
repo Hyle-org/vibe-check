@@ -1,23 +1,23 @@
 <template>
     <ul id="socials">
         <li>
-            <a class="social" href="https://hyle.eu" alt="Hylé">
-                <img src="../assets/Hyle_logo.svg" class="h-10 m-auto"/>
+            <a class="social" href="/" alt="Hylé">
+                <img src="../assets/Hyle_logo.svg" class="h-10 m-auto" />
             </a>
         </li>
         <li class="push">
             <a class="social" href="https://twitter.com/hyle_org" alt="Twitter">
-                <img src="../assets/twitter-logo.png" :width="iconSize" :height="iconSize"/>
+                <img src="../assets/twitter-logo.png" :width="iconSize" :height="iconSize" />
             </a>
         </li>
         <li>
             <a class="social" href="https://github.com/Hyle-org/vibe-check" alt="Github repo">
-                <img src="../assets/github-logo.png" :width="iconSize" :height="iconSize"/>
+                <img src="../assets/github-logo.png" :width="iconSize" :height="iconSize" />
             </a>
         </li>
         <li>
             <a class="social" href="https://t.me/hyle_org" alt="Telegram">
-                <img src="../assets/telegram-logo.png" :width="iconSize" :height="iconSize"/>
+                <img src="../assets/telegram-logo.png" :width="iconSize" :height="iconSize" />
             </a>
         </li>
 
@@ -28,24 +28,25 @@
         </li>
     </ul>
 </template>
-    
+
 <script setup lang="ts">
 
 const iconSize = 36;
 </script>
-    
+
 <style lang="css">
 #socials {
     display: flex;
     align-items: center;
 }
+
 .push {
-  margin-left: auto;
-}
-#socials > li {
+    margin-left: auto;
 }
 
-#socials > li:hover {
+#socials>li {}
+
+#socials>li:hover {
     opacity: 0.6;
 }
-</style> 
+</style>

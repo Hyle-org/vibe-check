@@ -169,6 +169,7 @@ const takeScreenshot = async () => {
         const displaySize = { width: canvas.width, height: canvas.height }
         const resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
         faceApi.draw.drawDetections(canvas, resizedDetections);
+        (videoFeed.value!.srcObject as MediaStream).getTracks().forEach(track => track.stop());
         status.value = "processing";
 
         const zoomingPromise = zoomInOnBox(canvas, screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
@@ -304,6 +305,7 @@ const signAndSendPayloadTx = async () => {
     try {
         const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
         webAuthnValues = await signChallengeWithWebAuthn(challenge);
+        webAuthnValues.identity = identity;
 
         // Start locally proving that we are who we claim to be by signing the transaction hash
         // Send the proof of smile to Giza or something
@@ -334,7 +336,7 @@ const signAndSendPayloadTx = async () => {
         // Send the transaction
         payloadResp = await broadcastPayloadTx(
             identity,
-            uint8ArrayToBase64(webAuthnValues.signature), // ATM we don't process noir payload. This value might change in the future
+            window.btoa(JSON.stringify(webAuthnValues)), // ATM we don't process noir payload. This value will change.
             window.btoa(smilePayload),
             window.btoa(erc20Payload),
         );
@@ -453,7 +455,7 @@ const vTriggerScroll = {
                     class="p-10 bg-black bg-opacity-70 rounded-xl">
                     <p class="text-center font-semibold font-anton mb-2">Authenticating via WebAuthn</p>
                     <p class="text-center">You will be asked to create a secure account<br />
-                        using the secure enclave contained within your phone.</p>
+                        using the secure enclave contained within your device.</p>
                     <i class="!mt-4 !m-auto !block spinner"></i>
                 </div>
                 <div v-else-if="status === 'failed_authentication'" class="p-10 bg-black bg-opacity-70 rounded-xl">
@@ -524,8 +526,8 @@ const vTriggerScroll = {
                                 <div v-if="status === 'payload_tx_success'"
                                     class="flex flex-col justify-center items-center py-16" v-trigger-scroll>
                                     <p class="text-center font-semibold font-anton uppercase mb-2">Transaction sent</p>
-                                    <p class="text-center text-sm font-mono">Once yourt TX is proven, you will earn 100
-                                        tokens on Hylé.</p>
+                                    <p class="text-center text-sm font-mono">Once your TX is proven, you will earn 100
+                                        tokens on Hylé devnet.</p>
                                     <p class="text-center text-sm font-mono my-4">Check it out on
                                         <a :href="HyleouApi.transactionDetails(payloadsTxHash!)">
                                             <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
@@ -579,7 +581,7 @@ const vTriggerScroll = {
                                     <p class="text-center text-sm font-mono">You've earned 100 devnet Hylé. Good vibes!
                                     </p>
                                     <p class="text-center text-sm font-mono my-4">Check it out on
-                                        <a :href="HyleouApi.transactionDetails(txHash)">
+                                        <a :href="HyleouApi.transactionDetails(txHash!)">
                                             <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
                                         </a><br>or tweet about it
                                         !

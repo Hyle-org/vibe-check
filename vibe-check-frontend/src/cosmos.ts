@@ -75,12 +75,12 @@ export async function broadcastPayloadTx(
                     data: ecdsaPayload, // ATM we don't process noir payload. This value might change in the future
                 },
                 {
-                    contractName: "smile_token",
-                    data: erc20Payload,
-                },
-                {
                     contractName: "smile",
                     data: smilePayload,
+                },
+                {
+                    contractName: "smile_token",
+                    data: erc20Payload,
                 },
             ],
             identity: identity,

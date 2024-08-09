@@ -135,3 +135,7 @@ pub async fn verify_handler(mut multipart: extract::Multipart) -> Response {
         }
     }
 }
+
+pub async fn health_handler() -> &'static str {
+    "OK"
+}
