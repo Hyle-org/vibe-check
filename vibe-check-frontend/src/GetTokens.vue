@@ -232,24 +232,26 @@ const sigmoid = (x: number) => {
 const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: number, y: number, width: number, height: number) => {
     vibeCheckStatus.value = null;
     status.value = "checking_vibe";
+
+    const small = document.createElement("canvas");
+    const smallCtx = small.getContext("2d")!;
+    // Try to preserve the aspect ratio but center the splatting
+    const aspectRatio = width / height;
+    // Assume the face detection is a little "zoomed out", and it's better to zoom so crop
+    if (aspectRatio > 1) {
+        height = width / aspectRatio;
+    } else {
+        width = height * aspectRatio;
+    }
+    smallCtx.drawImage(image, x, y, width, height, 0, 0, 48, 48);
+    //document.body.appendChild(small); // Debug
+
+    // This is global state so must be done in both paths.
+    grayScale = imageToGrayScale(smallCtx.getImageData(0, 0, 48, 48));
+
     // On webkit we skip actually running the smile, as it fails to finish for some reason.
     let isSmiling;
     if (navigator.userAgent.indexOf('Chrome') !== -1 || navigator.userAgent.indexOf('Firefox') !== -1) {
-        const small = document.createElement("canvas");
-        const smallCtx = small.getContext("2d")!;
-        // Try to preserve the aspect ratio but center the splatting
-        const aspectRatio = width / height;
-        // Assume the face detection is a little "zoomed out", and it's better to zoom so crop
-        if (aspectRatio > 1) {
-            height = width / aspectRatio;
-        } else {
-            width = height * aspectRatio;
-        }
-        smallCtx.drawImage(image, x, y, width, height, 0, 0, 48, 48);
-        //document.body.appendChild(small); // Debug
-
-        grayScale = imageToGrayScale(smallCtx.getImageData(0, 0, 48, 48));
-
         let cairoSmileRunOutput = await runSmile({
             identity: "DRYRUN", // not used in the model
             image: [...grayScale]
