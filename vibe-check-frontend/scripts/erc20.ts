@@ -1,14 +1,6 @@
-import {
-    broadcastPayloadTx,
-    broadcastProofTx,
-    checkTxStatus,
-    checkTxStatuses,
-    ensureContractsRegistered,
-    setupCosmos,
-} from "../src/cosmos";
-import { proveERC20Transfer, proveSmile } from "../src/cairo/prover.ts";
 import * as fs from "fs";
-import { uint8ArrayToBase64 } from "../src/utils.ts";
+import { broadcastVibeCheckPayload, ensureContractsRegistered } from "../src/cosmos";
+import { broadcastProofTx, setupCosmos, uint8ArrayToBase64, checkTxStatus, checkTxesStatus } from "hyle-js";
 
 const cosmos = setupCosmos("http://localhost:26657");
 
@@ -44,12 +36,7 @@ await new Promise((resolve) => setTimeout(resolve, 2000));
 await checkDigest();
 
 // Send the payloads transaction
-let payloadResp = await broadcastPayloadTx(
-    identity,
-    uint8ArrayToBase64(new Uint8Array(signature)),
-    btoa(smilePayload),
-    btoa(smileTokenPayload),
-);
+let payloadResp = await broadcastVibeCheckPayload(signature, smilePayload, smileTokenPayload);
 
 // Check that Tx is successful
 const txStatus = await checkTxStatus(payloadResp.transactionHash);
@@ -72,7 +59,7 @@ const erc20Resp = await broadcastProofTx(
 const smileResp = await broadcastProofTx(payloadResp.transactionHash, 2, "smile", uint8ArrayToBase64(smileProof));
 
 // Check the status of the proofs TX
-const proofTxStatus = await checkTxStatuses([
+const proofTxStatus = await checkTxesStatus([
     ecdsaResp.transactionHash,
     erc20Resp.transactionHash,
     smileResp.transactionHash,

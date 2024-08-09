@@ -1,7 +1,7 @@
 import { BarretenbergBackend, CompiledCircuit } from "@noir-lang/backend_barretenberg";
 import { Noir } from "@noir-lang/noir_js";
 import webAuthnCircuit from "./webauthn.json";
-import { getWebAuthnIdentity } from "../webauthn";
+import { ECDSAArgs } from "@/smart_contracts/SmartContract";
 
 // Circuit tools setup
 // Preloaded so the server starts downloading early and minimize latency.
@@ -11,7 +11,7 @@ noir.generateProof({}).catch((_) => {
     import("@aztec/bb.js");
 });
 
-export const proveECDSA = async (webAuthnValues: Record<string, any>) => {
+export const proveECDSA = async (webAuthnValues: ECDSAArgs) => {
     const noirInput = {
         // TODO: remove generic values
         version: 1,
