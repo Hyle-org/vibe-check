@@ -75,6 +75,7 @@ You will need a local Hylé node, we recommand you go through the [installation 
 
 ```
 git clone https://github.com/Hyle-org/vibe-check.git
+cd vibe-check
 cd cairo-proving-server
 cargo build --release
 ./target/release/cairo-proving-server
