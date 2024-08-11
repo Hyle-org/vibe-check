@@ -85,6 +85,7 @@ cargo build --release
 #### Installation
 We recommand you to use [bun](https://bun.sh/docs/installation) for running the frontend part.
 ```
+cd ..
 cd vibe-check-frontend
 bun install
 bun run dev
