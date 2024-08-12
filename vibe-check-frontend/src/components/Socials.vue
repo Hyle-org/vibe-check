@@ -1,3 +1,8 @@
+<script setup lang="ts">
+const iconSize = 36;
+const smallIconSize = 28; // these appear larger so make them smaller
+</script>
+
 <template>
     <ul id="socials">
         <li>
@@ -12,12 +17,12 @@
         </li>
         <li>
             <a class="social" href="https://github.com/Hyle-org/vibe-check" alt="Github repo">
-                <img src="../assets/github-logo.png" :width="iconSize" :height="iconSize" />
+                <img src="../assets/github-logo.png" :width="smallIconSize" :height="smallIconSize" />
             </a>
         </li>
         <li>
             <a class="social" href="https://t.me/hyle_org" alt="Telegram">
-                <img src="../assets/telegram-logo.png" :width="iconSize" :height="iconSize" />
+                <img src="../assets/telegram-logo.png" :width="smallIconSize" :height="smallIconSize" />
             </a>
         </li>
 
@@ -28,11 +33,6 @@
         </li>
     </ul>
 </template>
-
-<script setup lang="ts">
-
-const iconSize = 36;
-</script>
 
 <style lang="css">
 #socials {

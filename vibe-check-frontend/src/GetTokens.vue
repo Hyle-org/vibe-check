@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import * as faceApi from "face-api.js";
-import { computed, nextTick, onMounted, ref, watch, watchEffect } from "vue";
+import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
 import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
-import { runSmile, proveSmile, proveERC20Transfer } from "./cairo/prover";
-import { proveECDSA } from "./noir/prover";
-import { setupCosmos, broadcastProofTx, checkTxStatuses, ensureContractsRegistered, broadcastPayloadTx, checkTxStatus } from "./cosmos";
-import { getBalances } from "./SmileTokenIndexer";
+import { runSmile } from "@/smart_contracts/cairo/prover";
+import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
+import { getBalances } from "@/smart_contracts/SmileTokenIndexer";
+
+import { setupCosmos, checkTxStatus } from "hyle-js";
 
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
@@ -13,10 +14,9 @@ import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
-import { computeErc20Payload, computeSmilePayload } from "./cairo/CairoRunner";
-import { CairoArgs, CairoSmileArgs } from "./cairo/CairoHash";
-import { uint8ArrayToBase64 } from "./utils";
+import type { CairoArgs, CairoSmileArgs, ECDSAArgs } from "@/smart_contracts/SmartContract";
 import { DeliverTxResponse } from "@cosmjs/stargate";
+import { useProving } from "./smart_contracts/ProveAndBroadcast";
 
 // These are references to HTML elements
 const canvasOutput = ref<HTMLCanvasElement | null>(null);
@@ -33,22 +33,23 @@ const hasDetection = computed(() => lastDetections.value.length > 0);
 const vibeCheckStatus = ref<"failed_vibe" | "success_vibe" | null>(null);
 var grayScale: Float32Array;
 
-const ecdsaPromiseDone = ref<boolean>(false);
-const smilePromiseDone = ref<boolean>(false);
-const erc20PromiseDone = ref<boolean>(false);
-
 // General state machine state
-const status = ref<string>("start");
-const screen = ref<string>("start");
+const status = ref("start");
+const screen = ref("start");
 const error = ref<string | null>(null);
-const identityRef = ref<string>();
+const identityRef = ref("");
 const txHash = ref<string | null>(null);
-const payloadsTxHash = ref<string | null>(null);
 
+const {
+    ecdsaPromiseDone,
+    smilePromiseDone,
+    erc20PromiseDone,
+    proveAndSendProofsTx,
+} = useProving(status as any, error, txHash);
 
 let erc20Args: CairoArgs;
 let smileArgs: CairoSmileArgs;
-let webAuthnValues: Record<string, any>;
+let webAuthnValues: ECDSAArgs;
 let payloadResp: DeliverTxResponse;
 
 // Match screen to status
@@ -245,17 +246,16 @@ const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: nu
     smallCtx.drawImage(image, x, y, width, height, 0, 0, 48, 48);
     //document.body.appendChild(small); // Debug
 
+    // This is global state so must be done in both paths.
     grayScale = imageToGrayScale(smallCtx.getImageData(0, 0, 48, 48));
 
-    var dryRunSmilePayload = computeSmilePayload({
-        identity: "DRYRUN", // not used in the model
-        image: [...grayScale]
-    });
-
-    // On iOS, we need to skip it as it takes too long.
+    // On webkit we skip actually running the smile, as it fails to finish for some reason.
     let isSmiling;
-    if (navigator.userAgent.indexOf('AppleWebKit') === -1) {
-        let cairoSmileRunOutput = await runSmile(dryRunSmilePayload);
+    if (navigator.userAgent.indexOf('Chrome') !== -1 || navigator.userAgent.indexOf('Firefox') !== -1) {
+        let cairoSmileRunOutput = await runSmile({
+            identity: "DRYRUN", // not used in the model
+            image: [...grayScale]
+        });
         // Get last parameter of the serialized HyleOutput struct
         const last = cairoSmileRunOutput.split(" ").reverse()[0];
 
@@ -303,27 +303,6 @@ const signAndSendPayloadTx = async () => {
     }
 
     try {
-        const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
-        webAuthnValues = await signChallengeWithWebAuthn(challenge);
-        webAuthnValues.identity = identity;
-
-        // Start locally proving that we are who we claim to be by signing the transaction hash
-        // Send the proof of smile to Giza or something
-        smileArgs = {
-            identity: identity,
-            image: [...grayScale]
-        };
-        const smilePayload = computeSmilePayload(smileArgs);
-
-        // Locally or backend prove an erc20 transfer
-        erc20Args = {
-            balances: getBalances(),
-            from: "faucet",
-            to: identity,
-            amount: 100,
-        };
-        const erc20Payload = computeErc20Payload(erc20Args);
-
         await new Promise((resolve, reject) => {
             const ok = window.confirm("Because of WASM limitations, Vibe Check isn't able to generate proofs client-side for Giza. Your image will be sent to Hylé. If you're not OK with that, ask a friend to smile instead !");
             if (ok) {
@@ -333,12 +312,34 @@ const signAndSendPayloadTx = async () => {
             }
         });
 
+        const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
+        webAuthnValues = {
+            ...await signChallengeWithWebAuthn(challenge),
+            identity: identity,
+        }
+
+        // Start locally proving that we are who we claim to be by signing the transaction hash
+        // Send the proof of smile to Giza or something
+        smileArgs = {
+            identity: identity,
+            image: [...grayScale]
+        };
+
+        // Locally or backend prove an erc20 transfer
+        erc20Args = {
+            balances: getBalances(),
+            from: "faucet",
+            to: identity,
+            amount: 100,
+        };
+
+
         // Send the transaction
-        payloadResp = await broadcastPayloadTx(
+        payloadResp = await broadcastVibeCheckPayload(
             identity,
-            window.btoa(JSON.stringify(webAuthnValues)), // ATM we don't process noir payload. This value will change.
-            window.btoa(smilePayload),
-            window.btoa(erc20Payload),
+            webAuthnValues,
+            smileArgs,
+            erc20Args,
         );
 
         console.log("PayloadTx: ", payloadResp.transactionHash)
@@ -365,66 +366,8 @@ const signAndSendPayloadTx = async () => {
     }
 }
 
-const ProveAndSendProofsTx = async () => {
-    ecdsaPromiseDone.value = false;
-    smilePromiseDone.value = false;
-    erc20PromiseDone.value = false;
-    status.value = "proving";
-    try {
-        const ecdsaPromise = proveECDSA(webAuthnValues);
-        const erc20Promise = proveERC20Transfer(erc20Args);
-        const smilePromise = proveSmile(smileArgs);
-
-        ecdsaPromise.then(() => ecdsaPromiseDone.value = true);
-        erc20Promise.then(() => erc20PromiseDone.value = true);
-        smilePromise.then(() => smilePromiseDone.value = true);
-
-        // Send the proofs transactions
-        const ecdsaResp = await broadcastProofTx(
-            payloadResp.transactionHash,
-            0,
-            "ecdsa_secp256r1",
-            window.btoa(await ecdsaPromise)
-        );
-        const erc20Resp = await broadcastProofTx(
-            payloadResp.transactionHash,
-            1,
-            "smile_token",
-            uint8ArrayToBase64(await erc20Promise)
-        );
-        const smileResp = await broadcastProofTx(
-            payloadResp.transactionHash,
-            2,
-            "smile",
-            uint8ArrayToBase64(await smilePromise)
-        );
-        console.log("ecdsaProofTx: ", ecdsaResp.transactionHash)
-        console.log("erc20ProofTx: ", erc20Resp.transactionHash)
-        console.log("smileProofTx: ", smileResp.transactionHash)
-        // Switch to waiter view
-        status.value = "checking_tx";
-
-        // Wait a bit and assume TX will be processed
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Check the status of the TX
-        const txStatus = await checkTxStatuses([
-            ecdsaResp.transactionHash,
-            erc20Resp.transactionHash,
-            smileResp.transactionHash,
-        ]);
-        if (txStatus.status === "success") {
-            status.value = "tx_success";
-            txHash.value = erc20Resp.transactionHash;
-        } else {
-            status.value = "tx_failure";
-            error.value = txStatus.error || "Unknown error";
-        }
-    } catch (e) {
-        console.error(e);
-        error.value = `${e}`;
-        status.value = "failed_at_proving";
-    }
+const proveRemotely = async () => {
+    await proveAndSendProofsTx(txHash.value!, webAuthnValues, smileArgs, erc20Args);
 }
 
 const vTriggerScroll = {
@@ -463,10 +406,11 @@ const vTriggerScroll = {
                     <p class="text-center text-sm font-mono">{{ error }}</p>
                 </div>
             </div>
-            <div class="flex justify-center my-8">
+            <div class="flex justify-center my-8 gap-8">
                 <button @click="doWebAuthn" :disabled="status !== 'start' && status !== 'failed_authentication'">
                     Smile & get tokens
                 </button>
+                <a href="/proving" class="border-0"><button v-if="status === 'start'">Prove transactions</button></a>
             </div>
             <div class="text-center my-4 explainer">
                 <p class="smaller">Proofs are generated using <a href=https://noir-lang.org>Noir</a>, <a
@@ -529,7 +473,7 @@ const vTriggerScroll = {
                                     <p class="text-center text-sm font-mono">Once your TX is proven, you will earn 100
                                         tokens on Hylé devnet.</p>
                                     <p class="text-center text-sm font-mono my-4">Check it out on
-                                        <a :href="HyleouApi.transactionDetails(payloadsTxHash!)">
+                                        <a :href="HyleouApi.transactionDetails(txHash!)">
                                             <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
                                         </a><br>or tweet about it
                                         !
@@ -537,9 +481,11 @@ const vTriggerScroll = {
                                     <p class="text-center text-sm font-mono my-4">Anyone can generate proofs of your
                                         transaction, but you can also do it yourself:
                                     </p>
-                                    <button class="my-2" @click="ProveAndSendProofsTx">Prove remotely (no privacy)
+                                    <button class="my-2" @click="proveRemotely">Prove remotely (no privacy)
                                     </button>
                                     <button disabled>Prove locally (unavailable for now)</button>
+                                    <a href="/proving" class="border-0"><button class="my-2">Go to proving
+                                            page</button></a>
                                 </div>
                                 <div v-if="status === 'payload_tx_failure'"
                                     class="flex flex-col justify-center items-center my-8">

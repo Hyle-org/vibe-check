@@ -1,6 +1,6 @@
-import { computed, reactive, ref, watch, watchEffect } from "vue";
+import { computed, reactive, ref, watchEffect } from "vue";
 import { Erc20Parser, TransactionsStore } from "hyle-js";
-import { network } from "./network";
+import { network } from "../network";
 
 export function getBalances(): { name: string; amount: number }[] {
     return Object.entries(state.value.balancesSettled).map(([name, amount]) => ({ name, amount }));
@@ -9,7 +9,9 @@ export function getBalances(): { name: string; amount: number }[] {
 export function getBalancesAtTx(txHash: string) {
     const lastIndex = allTransactions.value.findIndex((tx) => tx.hash === txHash);
     if (lastIndex === -1) return [];
-    const txs = allTransactions.value.slice(0, lastIndex);
+    const txs = allTransactions.value
+        .slice(0, lastIndex)
+        .filter((tx) => tx.status === "success" || tx.status === "sequenced");
     const contract = new Erc20Parser("smile_token");
     contract.balancesPending["faucet"] = 1000000;
     txs.forEach((tx) => {
