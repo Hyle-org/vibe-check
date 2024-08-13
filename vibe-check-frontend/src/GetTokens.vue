@@ -250,8 +250,10 @@ const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: nu
     grayScale = imageToGrayScale(smallCtx.getImageData(0, 0, 48, 48));
 
     // On webkit we skip actually running the smile, as it fails to finish for some reason.
+    // TODO: at the moment I do this everywhere because running Cairo is too slow and we don't actually care all that much.
+    // We'd be better off running the ONNX directly in wasm via OnnxRuntime or something like that.
     let isSmiling;
-    if (navigator.userAgent.indexOf('Chrome') !== -1 || navigator.userAgent.indexOf('Firefox') !== -1) {
+    if (false) { // navigator.userAgent.indexOf('Chrome') !== -1 || navigator.userAgent.indexOf('Firefox') !== -1) {
         let cairoSmileRunOutput = await runSmile({
             identity: "DRYRUN", // not used in the model
             image: [...grayScale]
