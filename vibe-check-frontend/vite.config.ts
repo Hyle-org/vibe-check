@@ -46,6 +46,10 @@ export default defineConfig({
                     src: "node_modules/@noir-lang/**/*.wasm",
                     dest: "node_modules/.vite/deps",
                 },
+                {
+                    src: "node_modules/onnxruntime-web/dist/*.wasm",
+                    dest: "node_modules/.vite/deps",
+                },
             ],
             copySync: true,
             hook: "buildStart",
