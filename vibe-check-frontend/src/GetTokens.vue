@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import * as faceApi from "face-api.js";
+import * as ort from 'onnxruntime-web';
 import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
 import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
-import { runSmile } from "@/smart_contracts/cairo/prover";
 import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
 import { getBalances } from "@/smart_contracts/SmileTokenIndexer";
 
@@ -27,6 +27,7 @@ const screenshotOutput = ref<HTMLCanvasElement | null>(null);
 const screenshotData = ref<ImageBitmap | null>(null);
 const detectionTimer = ref<unknown | null>(null);
 const lastDetections = ref<faceApi.FaceDetection[]>([]);
+const onnxSessionRef = ref<ort.InferenceSession | null>(null);
 
 const hasDetection = computed(() => lastDetections.value.length > 0);
 
@@ -93,6 +94,7 @@ onMounted(async () => {
     await setupCosmos(getNetworkRpcUrl());
     await ensureContractsRegistered();
     identityRef.value = getWebAuthnIdentity();
+    onnxSessionRef.value = await ort.InferenceSession.create('./models/smile.onnx');
 });
 
 const doWebAuthn = async () => {
@@ -127,14 +129,16 @@ const activateCamera = async () => {
         detectionTimer.value = setInterval(async () => {
             const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight }
             faceApi.matchDimensions(canvasOutput.value!, displaySize)
+
+            // Detect faces
             lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
+
             // We shall only process detection if at least one face has been detected
             if (lastDetections.value.length > 0) {
-                var score = lastDetections.value[0].score.toFixed(2);
-                var resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
+                let resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
 
-                var canvas = canvasOutput.value!;
-                var context = canvas.getContext("2d")!;
+                let canvas = canvasOutput.value!;
+                let context = canvas.getContext("2d")!;
 
                 const box = {
                     x: resizedDetections[0].box.left,
@@ -142,7 +146,20 @@ const activateCamera = async () => {
                     width: resizedDetections[0].box.width,
                     height: resizedDetections[0].box.height,
                 };
+
+                // Draw detections for the faces
                 faceApi.draw.drawDetections(canvas, box);
+
+                // Save image in a temp canvas and apply ML to it
+                let canvasML = document.createElement("canvas");
+                canvasML.width = videoFeed.value!.videoWidth;
+                canvasML.height = videoFeed.value!.videoHeight;
+                let contextML = canvasML.getContext("2d")!;
+                contextML.drawImage(videoFeed.value!, 0, 0, canvas.width, canvas.height);
+                let image = await createImageBitmap(canvasML);
+                let score = await getSmileProbability(image, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
+
+                // Apply score to canvas
                 context.scale(-1, 1);
                 context.fillStyle = "blue";
                 context.font = "bold 16px Arial";
@@ -173,10 +190,9 @@ const takeScreenshot = async () => {
         (videoFeed.value!.srcObject as MediaStream).getTracks().forEach(track => track.stop());
         status.value = "processing";
 
-        const zoomingPromise = zoomInOnBox(canvas, screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
-        checkVibe(screenshotData.value!, zoomingPromise, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
-
-        await zoomingPromise;
+        await zoomInOnBox(canvas, screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
+        const smilingProbability = await getSmileProbability(screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
+        checkVibe(smilingProbability);
     }
 };
 
@@ -219,7 +235,7 @@ const imageToGrayScale = (image: ImageData): Float32Array => {
         const grayscale = 0.21 * r + 0.72 * g + 0.07 * b;
 
         // Store the grayscale value in the array
-        grayscaleArray[j] = Math.round(grayscale / 255 * 100000); // Normalized to [0, 1] and x100 000 for XGBoost inputs
+        grayscaleArray[j] = grayscale / 255;
     }
 
     return grayscaleArray;
@@ -229,10 +245,20 @@ const sigmoid = (x: number) => {
     return Math.exp(x) / (Math.exp(x) + 1);
 };
 
-const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: number, y: number, width: number, height: number) => {
+const checkVibe = async (isSmilingProbability: number) => {
     vibeCheckStatus.value = null;
     status.value = "checking_vibe";
 
+    console.log("Smile probability:", isSmilingProbability);
+    if (isSmilingProbability < 0.3) {
+        vibeCheckStatus.value = "failed_vibe";
+        status.value = "failed_vibe";
+    } else {
+        vibeCheckStatus.value = "success_vibe";
+        status.value = "success_vibe";
+    }
+}
+const getSmileProbability = async (image: ImageBitmap, x: number, y: number, width: number, height: number) => {
     const small = document.createElement("canvas");
     const smallCtx = small.getContext("2d")!;
     // Try to preserve the aspect ratio but center the splatting
@@ -252,37 +278,11 @@ const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: nu
     // On webkit we skip actually running the smile, as it fails to finish for some reason.
     // TODO: at the moment I do this everywhere because running Cairo is too slow and we don't actually care all that much.
     // We'd be better off running the ONNX directly in wasm via OnnxRuntime or something like that.
-    let isSmiling;
-    if (false) { // navigator.userAgent.indexOf('Chrome') !== -1 || navigator.userAgent.indexOf('Firefox') !== -1) {
-        let cairoSmileRunOutput = await runSmile({
-            identity: "DRYRUN", // not used in the model
-            image: [...grayScale]
-        });
-        // Get last parameter of the serialized HyleOutput struct
-        const last = cairoSmileRunOutput.split(" ").reverse()[0];
+    const tensorGrayScale = new ort.Tensor('float32', grayScale, [1, 48*48]);
+    const modelResponse = await onnxSessionRef.value?.run({ input: tensorGrayScale });
+    let smileProbability = modelResponse.probabilities.cpuData[1];
 
-        // Process felt as a signed integer.
-        let res = BigInt(last.split("]")[0]);
-        // 2^128
-        if (res > 340282366920938463463374607431768211456n)
-            res = -(3618502788666131213697322783095070105623107215331596699973092056135872020481n - res);
-        // Avoid NaNs in exp
-        if (res > 10000000n) res = 10000000n;
-        if (res < -10000000n) res = -10000000n;
-
-        isSmiling = sigmoid(+res.toString() / 100000);
-    } else {
-        isSmiling = Math.random();
-    }
-    console.log("Smile probability:", isSmiling);
-    await zoomingPromise;
-    if (isSmiling < 0.3) {
-        vibeCheckStatus.value = "failed_vibe";
-        status.value = "failed_vibe";
-    } else {
-        vibeCheckStatus.value = "success_vibe";
-        status.value = "success_vibe";
-    }
+    return smileProbability
 }
 
 const retryScreenshot = () => {
@@ -322,9 +322,11 @@ const signAndSendPayloadTx = async () => {
 
         // Start locally proving that we are who we claim to be by signing the transaction hash
         // Send the proof of smile to Giza or something
+        const cairoGrayScale = grayScale.map(pixel => Math.round(pixel * 100000))
+
         smileArgs = {
             identity: identity,
-            image: [...grayScale]
+            image: [...cairoGrayScale]
         };
 
         // Locally or backend prove an erc20 transfer

@@ -294,7 +294,7 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     }
 
     let program_output: Array<felt252> = array![result.into()];
-    let success = true;
+    let success = result >= -146633_i32;
 
     processHyleOutput(
         1, initial_state.clone(), initial_state.clone(), identity, 0, payload, success, program_output,
