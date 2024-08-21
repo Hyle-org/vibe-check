@@ -3,7 +3,6 @@ import * as faceApi from "face-api.js";
 import * as ort from 'onnxruntime-web';
 import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
 import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
-import { runSmile } from "@/smart_contracts/cairo/prover";
 import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
 import { getBalances } from "@/smart_contracts/SmileTokenIndexer";
 
