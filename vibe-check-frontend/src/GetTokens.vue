@@ -130,7 +130,10 @@ const activateCamera = async () => {
         detectionTimer.value = setInterval(async () => {
             const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight }
             faceApi.matchDimensions(canvasOutput.value!, displaySize)
+
+            // Detect faces
             lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
+
             // We shall only process detection if at least one face has been detected
             if (lastDetections.value.length > 0) {
                 let resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
@@ -144,13 +147,20 @@ const activateCamera = async () => {
                     width: resizedDetections[0].box.width,
                     height: resizedDetections[0].box.height,
                 };
+
+                // Draw detections for the faces
                 faceApi.draw.drawDetections(canvas, box);
 
-                /////////////////////////////
-                let image = await createImageBitmap(canvas);
+                // Save image in a temp canvas and apply ML to it
+                let canvasML = document.createElement("canvas");
+                canvasML.width = videoFeed.value!.videoWidth;
+                canvasML.height = videoFeed.value!.videoHeight;
+                let contextML = canvasML.getContext("2d")!;
+                contextML.drawImage(videoFeed.value!, 0, 0, canvas.width, canvas.height);
+                let image = await createImageBitmap(canvasML);
                 let score = await getSmileProbability(image, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
-                /////////////////////////////
 
+                // Apply score to canvas
                 context.scale(-1, 1);
                 context.fillStyle = "blue";
                 context.font = "bold 16px Arial";
