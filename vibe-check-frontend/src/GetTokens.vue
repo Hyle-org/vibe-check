@@ -279,30 +279,10 @@ const getSmileProbability = async (image: ImageBitmap, x: number, y: number, wid
     // On webkit we skip actually running the smile, as it fails to finish for some reason.
     // TODO: at the moment I do this everywhere because running Cairo is too slow and we don't actually care all that much.
     // We'd be better off running the ONNX directly in wasm via OnnxRuntime or something like that.
-    let smileProbability;
-    if (false) { // navigator.userAgent.indexOf('Chrome') !== -1 || navigator.userAgent.indexOf('Firefox') !== -1) {
-        let cairoSmileRunOutput = await runSmile({
-            identity: "DRYRUN", // not used in the model
-            image: [...grayScale]
-        });
-        // Get last parameter of the serialized HyleOutput struct
-        const last = cairoSmileRunOutput.split(" ").reverse()[0];
+    const tensorGrayScale = new ort.Tensor('float32', grayScale, [1, 48*48]);
+    const modelResponse = await onnxSessionRef.value?.run({ input: tensorGrayScale });
+    let smileProbability = modelResponse.probabilities.cpuData[1];
 
-        // Process felt as a signed integer.
-        let res = BigInt(last.split("]")[0]);
-        // 2^128
-        if (res > 340282366920938463463374607431768211456n)
-            res = -(3618502788666131213697322783095070105623107215331596699973092056135872020481n - res);
-        // Avoid NaNs in exp
-        if (res > 10000000n) res = 10000000n;
-        if (res < -10000000n) res = -10000000n;
-
-        smileProbability = sigmoid(+res.toString() / 100000);
-    } else {
-        const tensorGrayScale = new ort.Tensor('float32', grayScale, [1, 48*48]);
-        const modelResponse = await onnxSessionRef.value?.run({ input: tensorGrayScale });
-        smileProbability = modelResponse.probabilities.cpuData[1];
-    }
     return smileProbability
 }
 
@@ -343,10 +323,7 @@ const signAndSendPayloadTx = async () => {
 
         // Start locally proving that we are who we claim to be by signing the transaction hash
         // Send the proof of smile to Giza or something
-        let cairoGrayScale = new Float32Array(grayScale.length);
-        for (let i = 0; i < grayScale.length; i++) {
-            cairoGrayScale[i] = Math.round(grayScale[i] * 100000);
-        }
+        const cairoGrayScale = grayScale.map(pixel => Math.round(pixel * 100000))
 
         smileArgs = {
             identity: identity,
