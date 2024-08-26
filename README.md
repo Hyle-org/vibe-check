@@ -142,18 +142,6 @@ The demo used to generate zk-proofs for the facial feature classification predic
 
 By using [TEE](https://www.marlin.org/ai) for serving classification predictions & their attestations we not only reduced wait time for the users but also give security security for this particular use-case.
 
-**Giza** focuses on helping developers create a provable machine-learning model.
-
-Here is the flow we followed:
-
-1. We used a **simple classifier from the [XGBoost library](https://xgboost.readthedocs.io/en/stable/) in Python**, which Giza fully supports. 
-2. We serialized our model in json thanks to the Giza SDK.
-3. We used the Giza API to turn our model into a Cairo program.
-4. We compiled the Cairo ML into Sierra using `scarb`
-5. We executed our model in the Cairo VM we were using.
-
-Deep learning models, especially CNNs, would typically be more appropriate for image recognition, but some primitives used by those are not yet supported. Larger models are also extremely hard to run in a Cairo VM because of their high memory requirements.
-
 ## Thanks
 
 S/O to Lambdaclass team for their [CairoVM](https://github.com/lambdaclass/cairo-vm/tree/main/cairo1-run) and [Cairo prover](https://github.com/lambdaclass/lambdaworks/tree/main/provers/cairo).
