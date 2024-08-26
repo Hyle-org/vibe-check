@@ -1,0 +1,15 @@
+{
+  "name": "cairo-runner",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "cairo_runner_bg.wasm",
+    "cairo_runner.js",
+    "cairo_runner.d.ts"
+  ],
+  "main": "cairo_runner.js",
+  "types": "cairo_runner.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

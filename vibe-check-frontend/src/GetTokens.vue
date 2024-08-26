@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import * as faceApi from "face-api.js";
-import * as ort from 'onnxruntime-web';
-import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
+import { computed, nextTick, onMounted, ref, watch, watchEffect } from "vue";
 import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
-import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
-import { getBalances } from "@/smart_contracts/SmileTokenIndexer";
-
-import { setupCosmos, checkTxStatus } from "hyle-js";
+import { proveERC20Transfer } from "./cairo/prover";
+import { proveECDSA } from "./noir/prover";
+import { setupCosmos, broadcastProofTx, checkTxStatuses, ensureContractsRegistered, broadcastPayloadTx, checkTxStatus } from "./cosmos";
+import { getBalances } from "./SmileTokenIndexer";
 
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
@@ -14,9 +13,10 @@ import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
-import type { CairoArgs, CairoSmileArgs, ECDSAArgs } from "@/smart_contracts/SmartContract";
+import { computeErc20Payload, computeSmilePayload } from "./cairo/CairoRunner";
+import { CairoArgs, CairoSmileArgs } from "./cairo/CairoHash";
+import { uint8ArrayToBase64 } from "./utils";
 import { DeliverTxResponse } from "@cosmjs/stargate";
-import { useProving } from "./smart_contracts/ProveAndBroadcast";
 
 // These are references to HTML elements
 const canvasOutput = ref<HTMLCanvasElement | null>(null);
@@ -27,30 +27,28 @@ const screenshotOutput = ref<HTMLCanvasElement | null>(null);
 const screenshotData = ref<ImageBitmap | null>(null);
 const detectionTimer = ref<unknown | null>(null);
 const lastDetections = ref<faceApi.FaceDetection[]>([]);
-const onnxSessionRef = ref<ort.InferenceSession | null>(null);
 
 const hasDetection = computed(() => lastDetections.value.length > 0);
 
 const vibeCheckStatus = ref<"failed_vibe" | "success_vibe" | null>(null);
 var grayScale: Float32Array;
 
-// General state machine state
-const status = ref("start");
-const screen = ref("start");
-const error = ref<string | null>(null);
-const identityRef = ref("");
-const txHash = ref<string | null>(null);
+const ecdsaPromiseDone = ref<boolean>(false);
+const smilePromiseDone = ref<boolean>(false);
+const erc20PromiseDone = ref<boolean>(false);
 
-const {
-    ecdsaPromiseDone,
-    smilePromiseDone,
-    erc20PromiseDone,
-    proveAndSendProofsTx,
-} = useProving(status as any, error, txHash);
+// General state machine state
+const status = ref<string>("start");
+const screen = ref<string>("start");
+const error = ref<string | null>(null);
+const identityRef = ref<string>();
+const txHash = ref<string | null>(null);
+const payloadsTxHash = ref<string | null>(null);
+
 
 let erc20Args: CairoArgs;
 let smileArgs: CairoSmileArgs;
-let webAuthnValues: ECDSAArgs;
+let webAuthnValues: Record<string, any>;
 let payloadResp: DeliverTxResponse;
 
 // Match screen to status
@@ -94,7 +92,6 @@ onMounted(async () => {
     await setupCosmos(getNetworkRpcUrl());
     await ensureContractsRegistered();
     identityRef.value = getWebAuthnIdentity();
-    onnxSessionRef.value = await ort.InferenceSession.create('./models/smile.onnx');
 });
 
 const doWebAuthn = async () => {
@@ -129,16 +126,14 @@ const activateCamera = async () => {
         detectionTimer.value = setInterval(async () => {
             const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight }
             faceApi.matchDimensions(canvasOutput.value!, displaySize)
-
-            // Detect faces
             lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
-
             // We shall only process detection if at least one face has been detected
             if (lastDetections.value.length > 0) {
-                let resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
+                var score = lastDetections.value[0].score.toFixed(2);
+                var resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
 
-                let canvas = canvasOutput.value!;
-                let context = canvas.getContext("2d")!;
+                var canvas = canvasOutput.value!;
+                var context = canvas.getContext("2d")!;
 
                 const box = {
                     x: resizedDetections[0].box.left,
@@ -146,20 +141,7 @@ const activateCamera = async () => {
                     width: resizedDetections[0].box.width,
                     height: resizedDetections[0].box.height,
                 };
-
-                // Draw detections for the faces
                 faceApi.draw.drawDetections(canvas, box);
-
-                // Save image in a temp canvas and apply ML to it
-                let canvasML = document.createElement("canvas");
-                canvasML.width = videoFeed.value!.videoWidth;
-                canvasML.height = videoFeed.value!.videoHeight;
-                let contextML = canvasML.getContext("2d")!;
-                contextML.drawImage(videoFeed.value!, 0, 0, canvas.width, canvas.height);
-                let image = await createImageBitmap(canvasML);
-                let score = await getSmileProbability(image, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
-
-                // Apply score to canvas
                 context.scale(-1, 1);
                 context.fillStyle = "blue";
                 context.font = "bold 16px Arial";
@@ -190,9 +172,10 @@ const takeScreenshot = async () => {
         (videoFeed.value!.srcObject as MediaStream).getTracks().forEach(track => track.stop());
         status.value = "processing";
 
-        await zoomInOnBox(canvas, screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
-        const smilingProbability = await getSmileProbability(screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
-        checkVibe(smilingProbability);
+        const zoomingPromise = zoomInOnBox(canvas, screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
+        checkVibe(screenshotData.value!, zoomingPromise, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
+
+        await zoomingPromise;
     }
 };
 
@@ -221,68 +204,186 @@ const zoomInOnBox = async (canvas: HTMLCanvasElement, img: ImageBitmap, x: numbe
     });
 }
 
-const imageToGrayScale = (image: ImageData): Float32Array => {
-    const data = image.data;
-
-    // Create a flattened array for grayscale values
-    const grayscaleArray = new Float32Array(image.width * image.height);
-
-    for (let i = 0, j = 0; i < data.length; i += 4, j++) {
-        // Convert RGB to grayscale using luminosity method
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const grayscale = 0.21 * r + 0.72 * g + 0.07 * b;
-
-        // Store the grayscale value in the array
-        grayscaleArray[j] = grayscale / 255;
-    }
-
-    return grayscaleArray;
-}
-
-const sigmoid = (x: number) => {
-    return Math.exp(x) / (Math.exp(x) + 1);
-};
-
-const checkVibe = async (isSmilingProbability: number) => {
+const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: number, y: number, width: number, height: number) => {
     vibeCheckStatus.value = null;
     status.value = "checking_vibe";
 
-    console.log("Smile probability:", isSmilingProbability);
-    if (isSmilingProbability < 0.3) {
-        vibeCheckStatus.value = "failed_vibe";
-        status.value = "failed_vibe";
-    } else {
-        vibeCheckStatus.value = "success_vibe";
-        status.value = "success_vibe";
-    }
-}
-const getSmileProbability = async (image: ImageBitmap, x: number, y: number, width: number, height: number) => {
+    console.log("Face detection coordinates:", { x, y, width, height });
+
     const small = document.createElement("canvas");
     const smallCtx = small.getContext("2d")!;
-    // Try to preserve the aspect ratio but center the splatting
-    const aspectRatio = width / height;
-    // Assume the face detection is a little "zoomed out", and it's better to zoom so crop
-    if (aspectRatio > 1) {
-        height = width / aspectRatio;
-    } else {
-        width = height * aspectRatio;
-    }
+    small.width = 48;
+    small.height = 48;
+
+    // Draw the entire face detection area
     smallCtx.drawImage(image, x, y, width, height, 0, 0, 48, 48);
-    //document.body.appendChild(small); // Debug
+    
+    const imageData = smallCtx.getImageData(0, 0, 48, 48);
+    const processedData = new Float32Array(48 * 48);
 
-    // This is global state so must be done in both paths.
-    grayScale = imageToGrayScale(smallCtx.getImageData(0, 0, 48, 48));
+    // Apply Gaussian blur to reduce noise
+    const blurredData = new Float32Array(48 * 48);
+    const kernel = [
+        [1, 2, 1],
+        [2, 4, 2],
+        [1, 2, 1]
+    ]; // Gaussian kernel for better blurring
 
-    // On webkit we skip actually running the smile, as it fails to finish for some reason.
-    // TODO: at the moment I do this everywhere because running Cairo is too slow and we don't actually care all that much.
-    // We'd be better off running the ONNX directly in wasm via OnnxRuntime or something like that.
-    const tensorGrayScale = new ort.Tensor('float32', grayScale, [1, 48*48]);
-    const modelResponse = await onnxSessionRef.value?.run({ input: tensorGrayScale });
-    let smileProbability = modelResponse.probabilities.cpuData[1];
+    for (let y = 0; y < 48; y++) {
+        for (let x = 0; x < 48; x++) {
+            let sum = 0;
+            let count = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < 48 && ny >= 0 && ny < 48) {
+                        const idx = (ny * 48 + nx) * 4;
+                        const pixelValue = (imageData.data[idx] + imageData.data[idx + 1] + imageData.data[idx + 2]) / 3;
+                        sum += pixelValue * kernel[dy + 1][dx + 1]; // Apply kernel weight
+                        count += kernel[dy + 1][dx + 1];
+                    }
+                }
+            }
+            blurredData[y * 48 + x] = sum / count; // Average for blur
+        }
+    }
 
-    return smileProbability
+    // Adaptive thresholding
+    const blockSize = 5; // Increased block size for better averaging
+    const C = 5; // Increased constant to reduce false positives
+
+    for (let y = 0; y < 48; y++) {
+        for (let x = 0; x < 48; x++) {
+            let sum = 0;
+            let count = 0;
+            for (let dy = -blockSize; dy <= blockSize; dy++) {
+                for (let dx = -blockSize; dx <= blockSize; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < 48 && ny >= 0 && ny < 48) {
+                        sum += blurredData[ny * 48 + nx];
+                        count++;
+                    }
+                }
+            }
+            const threshold = sum / count - C;
+            const pixelValue = blurredData[y * 48 + x];
+            processedData[y * 48 + x] = pixelValue < threshold ? 1 : 0;
+        }
+    }
+
+    // Focus on the mouth and lip region
+    const mouthRegion = new Float32Array(48 * 48);
+    const mouthY = Math.floor(height * 0.55); // Adjusted for better mouth detection
+    const mouthHeight = Math.floor(height * 0.3); // Increased height of the mouth region
+
+    for (let y = mouthY; y < mouthY + mouthHeight; y++) {
+        for (let x = 0; x < 48; x++) {
+            const index = y * 48 + x;
+            if (index < mouthRegion.length) {
+                mouthRegion[index] = processedData[index]; // Copy the processed data for the mouth region
+            }
+        }
+    }
+
+    // Morphological opening to reduce black spots
+    const openedData = new Float32Array(48 * 48);
+    for (let y = 0; y < 48; y++) {
+        for (let x = 0; x < 48; x++) {
+            if (mouthRegion[y * 48 + x] === 1) {
+                openedData[y * 48 + x] = 1; // Keep the pixel
+            } else {
+                // Check surrounding pixels
+                let isSurrounded = false;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx >= 0 && nx < 48 && ny >= 0 && ny < 48 && mouthRegion[ny * 48 + nx] === 1) {
+                            isSurrounded = true;
+                        }
+                    }
+                }
+                if (isSurrounded) {
+                    openedData[y * 48 + x] = 0.5; // Lighten the pixel
+                }
+            }
+        }
+    }
+
+    // Combine mouth and lip regions for final processing
+    const lipRegion = new Float32Array(48 * 48);
+    const lipY = Math.floor(height * 0.65); // Adjusted for better lip detection
+    const lipHeight = Math.floor(height * 0.1); // Height of the lip region
+
+    for (let y = lipY; y < lipY + lipHeight; y++) {
+        for (let x = 0; x < 48; x++) {
+            const index = y * 48 + x;
+            if (index < lipRegion.length) {
+                lipRegion[index] = processedData[index]; // Copy the processed data for the lip region
+            }
+        }
+    }
+
+    // Ensure lips are included in the processed data
+    for (let i = 0; i < 48 * 48; i++) {
+        if (lipRegion[i] === 1) {
+            processedData[i] = 1; // Ensure lips are included in the processed data
+        }
+    }
+   
+    // Visualize the processed image
+    // appendFloatArrayAsImage(processedData, "Processed Image"); // Debug
+
+    try {
+        console.time("teeML smile prediction");
+        const result = await callTeeApi(Array.from(processedData));
+        console.timeEnd("teeML smile prediction");
+        console.log("TEE Result:", result);
+        await zoomingPromise;
+
+        if (result.prediction[0] === 1) {
+            vibeCheckStatus.value = "success_vibe";
+            status.value = "success_vibe";
+        } else {
+            vibeCheckStatus.value = "failed_vibe";
+            status.value = "failed_vibe";
+        }
+    } catch (error) {
+        console.error("Error calling TEE API:", error);
+        status.value = "failed_vibe";
+    }
+}
+
+// Update the appendFloatArrayAsImage function to handle grayscale values
+const appendFloatArrayAsImage = (floatArray: number[], label: string) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
+    canvas.width = 48;
+    canvas.height = 48;
+    const imageData = ctx.createImageData(48, 48);
+
+    for (let i = 0; i < floatArray.length; i++) {
+        const value = Math.round((1 - floatArray[i]) * 255); // Invert and scale to 0-255
+        imageData.data[i * 4] = value;
+        imageData.data[i * 4 + 1] = value;
+        imageData.data[i * 4 + 2] = value;
+        imageData.data[i * 4 + 3] = 255;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    
+    const container = document.createElement("div");
+    container.style.display = "inline-block";
+    container.style.margin = "10px";
+    container.appendChild(canvas);
+    
+    const labelElement = document.createElement("p");
+    labelElement.textContent = label;
+    container.appendChild(labelElement);
+    
+    document.body.appendChild(container);
 }
 
 const retryScreenshot = () => {
@@ -305,6 +406,27 @@ const signAndSendPayloadTx = async () => {
     }
 
     try {
+        const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
+        webAuthnValues = await signChallengeWithWebAuthn(challenge);
+        webAuthnValues.identity = identity;
+
+        // Start locally proving that we are who we claim to be by signing the transaction hash
+        // Send the proof of smile to Giza or something
+        smileArgs = {
+            identity: identity,
+            image: [...grayScale]
+        };
+        const smilePayload = computeSmilePayload(smileArgs);
+
+        // Locally or backend prove an erc20 transfer
+        erc20Args = {
+            balances: getBalances(),
+            from: "faucet",
+            to: identity,
+            amount: 100,
+        };
+        const erc20Payload = computeErc20Payload(erc20Args);
+
         await new Promise((resolve, reject) => {
             const ok = window.confirm("Because of WASM limitations, Vibe Check isn't able to generate proofs client-side for Giza. Your image will be sent to Hylé. If you're not OK with that, ask a friend to smile instead !");
             if (ok) {
@@ -314,36 +436,12 @@ const signAndSendPayloadTx = async () => {
             }
         });
 
-        const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
-        webAuthnValues = {
-            ...await signChallengeWithWebAuthn(challenge),
-            identity: identity,
-        }
-
-        // Start locally proving that we are who we claim to be by signing the transaction hash
-        // Send the proof of smile to Giza or something
-        const cairoGrayScale = grayScale.map(pixel => Math.round(pixel * 100000))
-
-        smileArgs = {
-            identity: identity,
-            image: [...cairoGrayScale]
-        };
-
-        // Locally or backend prove an erc20 transfer
-        erc20Args = {
-            balances: getBalances(),
-            from: "faucet",
-            to: identity,
-            amount: 100,
-        };
-
-
         // Send the transaction
-        payloadResp = await broadcastVibeCheckPayload(
+        payloadResp = await broadcastPayloadTx(
             identity,
-            webAuthnValues,
-            smileArgs,
-            erc20Args,
+            window.btoa(JSON.stringify(webAuthnValues)), // ATM we don't process noir payload. This value will change.
+            window.btoa(smilePayload),
+            window.btoa(erc20Payload),
         );
 
         console.log("PayloadTx: ", payloadResp.transactionHash)
@@ -370,8 +468,91 @@ const signAndSendPayloadTx = async () => {
     }
 }
 
-const proveRemotely = async () => {
-    await proveAndSendProofsTx(txHash.value!, webAuthnValues, smileArgs, erc20Args);
+const callTeeApi = async (grayscaleImage: number[]): Promise<any> => {
+    const url = `/api/prediction`; // Use the proxy path
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image: grayscaleImage,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error occurred: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error calling TEE API:', error);
+        throw error; // Re-throw the error for further handling if needed
+    }
+};
+
+const ProveAndSendProofsTx = async () => {
+    ecdsaPromiseDone.value = false;
+    smilePromiseDone.value = false;
+    erc20PromiseDone.value = false;
+    status.value = "proving";
+    try {
+        const ecdsaPromise = proveECDSA(webAuthnValues);
+        const erc20Promise = proveERC20Transfer(erc20Args);
+        // const smilePromise = proveSmile(smileArgs);
+
+        ecdsaPromise.then(() => ecdsaPromiseDone.value = true);
+        erc20Promise.then(() => erc20PromiseDone.value = true);
+        // smilePromise.then(() => smilePromiseDone.value = true);
+
+        // Send the proofs transactions
+        const ecdsaResp = await broadcastProofTx(
+            payloadResp.transactionHash,
+            0,
+            "ecdsa_secp256r1",
+            window.btoa(await ecdsaPromise)
+        );
+        const erc20Resp = await broadcastProofTx(
+            payloadResp.transactionHash,
+            1,
+            "smile_token",
+            uint8ArrayToBase64(await erc20Promise)
+        );
+        // const smileResp = await broadcastProofTx(
+        //     payloadResp.transactionHash,
+        //     2,
+        //     "smile",
+        //     uint8ArrayToBase64(await smilePromise)
+        // );
+        console.log("ecdsaProofTx: ", ecdsaResp.transactionHash)
+        console.log("erc20ProofTx: ", erc20Resp.transactionHash)
+        // console.log("smileProofTx: ", smileResp.transactionHash)
+        // Switch to waiter view
+        status.value = "checking_tx";
+
+        // Wait a bit and assume TX will be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Check the status of the TX
+        const txStatus = await checkTxStatuses([
+            ecdsaResp.transactionHash,
+            erc20Resp.transactionHash,
+            // smileResp.transactionHash,
+        ]);
+        if (txStatus.status === "success") {
+            status.value = "tx_success";
+            txHash.value = erc20Resp.transactionHash;
+        } else {
+            status.value = "tx_failure";
+            error.value = txStatus.error || "Unknown error";
+        }
+    } catch (e) {
+        console.error(e);
+        error.value = `${e}`;
+        status.value = "failed_at_proving";
+    }
 }
 
 const vTriggerScroll = {
@@ -410,11 +591,10 @@ const vTriggerScroll = {
                     <p class="text-center text-sm font-mono">{{ error }}</p>
                 </div>
             </div>
-            <div class="flex justify-center my-8 gap-8">
+            <div class="flex justify-center my-8">
                 <button @click="doWebAuthn" :disabled="status !== 'start' && status !== 'failed_authentication'">
                     Smile & get tokens
                 </button>
-                <a href="/proving" class="border-0"><button v-if="status === 'start'">Prove transactions</button></a>
             </div>
             <div class="text-center my-4 explainer">
                 <p class="smaller">Proofs are generated using <a href=https://noir-lang.org>Noir</a>, <a
@@ -477,7 +657,7 @@ const vTriggerScroll = {
                                     <p class="text-center text-sm font-mono">Once your TX is proven, you will earn 100
                                         tokens on Hylé devnet.</p>
                                     <p class="text-center text-sm font-mono my-4">Check it out on
-                                        <a :href="HyleouApi.transactionDetails(txHash!)">
+                                        <a :href="HyleouApi.transactionDetails(payloadsTxHash!)">
                                             <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
                                         </a><br>or tweet about it
                                         !
@@ -485,11 +665,9 @@ const vTriggerScroll = {
                                     <p class="text-center text-sm font-mono my-4">Anyone can generate proofs of your
                                         transaction, but you can also do it yourself:
                                     </p>
-                                    <button class="my-2" @click="proveRemotely">Prove remotely (no privacy)
+                                    <button class="my-2" @click="ProveAndSendProofsTx">Prove remotely (no privacy)
                                     </button>
                                     <button disabled>Prove locally (unavailable for now)</button>
-                                    <a href="/proving" class="border-0"><button class="my-2">Go to proving
-                                            page</button></a>
                                 </div>
                                 <div v-if="status === 'payload_tx_failure'"
                                     class="flex flex-col justify-center items-center my-8">
