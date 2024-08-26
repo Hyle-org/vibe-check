@@ -9,32 +9,18 @@ fn main(input: Array<felt252>) -> Array<felt252> {
 
     let mut input = input.span();
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-    let (identity, image): (ByteArray, Array<felt252>) = Serde::deserialize(ref input).unwrap();
-=======
->>>>>>> Stashed changes
-
     let (mut identity, payloads): (ByteArray, Array<felt252>) = Serde::deserialize(ref input)
         .unwrap();
     let mut payloads_span = payloads.span();
+
     let (
-<<<<<<< Updated upstream
-        _smile_token_payload, smile_payload, _noir_payload
-=======
         _noir_payload, smile_payload, _smile_token_payload
->>>>>>> Stashed changes
     ): (Array<felt252>, Array<felt252>, Array<felt252>) =
         Serde::deserialize(
         ref payloads_span
     )
         .unwrap();
 
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
     let mut conv: Array<i32> = ArrayTrait::new();
     let mut n = 0;
     

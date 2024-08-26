@@ -94,29 +94,16 @@ fn update_account(balances: Array<Account>, new_account: Account) -> Array<Accou
 fn main(input: Array<felt252>) -> Array<felt252> {
     let mut input = input.span();
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-    let (mut balances, payload): (Array<Account>, Array<felt252>) = Serde::deserialize(ref input)
-=======
->>>>>>> Stashed changes
     let (mut balances, payloads): (Array<Account>, Array<felt252>) = Serde::deserialize(ref input)
         .unwrap();
     let mut payloads_span = payloads.span();
+
     let (
-<<<<<<< Updated upstream
-        smile_token_payload, _smile_payload, _noir_payload
-=======
         _noir_payload, _smile_payload, smile_token_payload,
->>>>>>> Stashed changes
     ): (Array<felt252>, Array<felt252>, Array<felt252>) =
         Serde::deserialize(
         ref payloads_span
     )
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         .unwrap();
 
     /////// APPLICATION PART ///////
