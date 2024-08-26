@@ -74,3 +74,12 @@ fn prefix<N, M>(input: [u8; N], mut result: [u8; M]) -> [u8; M] {
     }
     result
 }
+
+pub fn extract_array<N, M, T>(list: [T; N], start: u32, size: u32) -> [T; M]
+    where T: Default {
+    let mut result: [T; M] = [T::default(); M];
+    for i in 0..size {
+        result[i] = list[start + i];
+    }
+    result
+}
