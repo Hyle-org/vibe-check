@@ -136,9 +136,11 @@ We use **Cairo** for two proofs:
 
 We used the LambdaClass CairoVM. Because of the current dependency mismatches between the prover and the runner, the Cairo prover and the Cairo runner had to be compiled separately.
 
-### Using Giza for zkML
+### teeML
 
-ZkML is one of ZK's many use cases. It helps you assert that a prediction's result was obtained with the right model, trained on the right dataset, and fed with the right input.
+The demo used to generate zk-proofs for the facial feature classification predictions using [Cairo](https://starkware.co/cairo/). This was necessary to predict if the person is smiling & prove the same using a zk-proof. Althought the computations required for this were server-side done on the Cairo VM it still resulted in long wait time for the users of the demo.
+
+By using [TEE](https://www.marlin.org/ai) for serving classification predictions & their attestations we not only reduced wait time for the users but also give security security for this particular use-case.
 
 **Giza** focuses on helping developers create a provable machine-learning model.
 

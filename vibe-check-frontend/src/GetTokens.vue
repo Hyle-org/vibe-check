@@ -337,9 +337,7 @@ const checkVibe = async (image: ImageBitmap, zoomingPromise: Promise<any>, x: nu
     // appendFloatArrayAsImage(processedData, "Processed Image"); // Debug
 
     try {
-        console.time("teeML smile prediction");
         const result = await callTeeApi(Array.from(processedData));
-        console.timeEnd("teeML smile prediction");
         console.log("TEE Result:", result);
         await zoomingPromise;
 
@@ -572,7 +570,7 @@ const vTriggerScroll = {
         <h1 class="text-center my-4">Vibe Check</h1>
         <hr />
         <div class="text-center my-4 explainer">
-            <p class="my-4">Vibe Check is a zkML & WebAuthn Powered zkApp asserting a user has smiled and awarding test
+            <p class="my-4">Vibe Check is a teeML & WebAuthn Powered zkApp asserting a user has smiled and awarding test
                 tokens on Hylé!</p>
             <p class="my-4 smaller">This is a test project! Don't take it too seriously. Code can be found on our <a
                     href="https://github.com/Hyle-org/vibe-check">github</a></p>
