@@ -94,12 +94,34 @@ fn update_account(balances: Array<Account>, new_account: Account) -> Array<Accou
 fn main(input: Array<felt252>) -> Array<felt252> {
     let mut input = input.span();
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
     let (mut balances, payload): (Array<Account>, Array<felt252>) = Serde::deserialize(ref input)
+=======
+>>>>>>> Stashed changes
+    let (mut balances, payloads): (Array<Account>, Array<felt252>) = Serde::deserialize(ref input)
+        .unwrap();
+    let mut payloads_span = payloads.span();
+    let (
+<<<<<<< Updated upstream
+        smile_token_payload, _smile_payload, _noir_payload
+=======
+        _noir_payload, _smile_payload, smile_token_payload,
+>>>>>>> Stashed changes
+    ): (Array<felt252>, Array<felt252>, Array<felt252>) =
+        Serde::deserialize(
+        ref payloads_span
+    )
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
         .unwrap();
 
     /////// APPLICATION PART ///////
-    let mut payload_span = payload.span();
-    let event: Event = Serde::deserialize(ref payload_span).unwrap();
+    let mut smile_token_payload_span = smile_token_payload.span();
+    let event: Event = Serde::deserialize(ref smile_token_payload_span).unwrap();
     // Initial state compute
     let initial_state = compute_state_pedersen_hash(@balances);
 
@@ -133,7 +155,14 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     let success = true;
 
     processHyleOutput(
-        1, initial_state, next_state, event.to.clone(), 0, payload.clone(), success, payload.clone()
+        1,
+        initial_state,
+        next_state,
+        event.to.clone(),
+        0,
+        payloads.clone(),
+        success,
+        smile_token_payload.clone()
     )
 }
 
@@ -146,7 +175,7 @@ struct HyleOutput {
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payload_hash: felt252,
+    payloads: Array<felt252>,
     success: bool,
     program_outputs: Array<felt252>
 }
@@ -181,13 +210,11 @@ fn processHyleOutput(
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payload: Array<felt252>,
+    payloads: Array<felt252>,
     success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
     // Hashing payload
-    let payload_span = payload.span();
-    let payload_hash = compute_hash_on_elements(payload_span);
 
     // HyleOutput
     let hyle_output = HyleOutput {
@@ -196,7 +223,7 @@ fn processHyleOutput(
         next_state: next_state,
         identity: identity,
         tx_hash: tx_hash,
-        payload_hash: payload_hash,
+        payloads: payloads,
         success: success,
         program_outputs: program_output,
     };

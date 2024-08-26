@@ -9,14 +9,37 @@ fn main(input: Array<felt252>) -> Array<felt252> {
 
     let mut input = input.span();
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
     let (identity, image): (ByteArray, Array<felt252>) = Serde::deserialize(ref input).unwrap();
+=======
+>>>>>>> Stashed changes
+
+    let (mut identity, payloads): (ByteArray, Array<felt252>) = Serde::deserialize(ref input)
+        .unwrap();
+    let mut payloads_span = payloads.span();
+    let (
+<<<<<<< Updated upstream
+        _smile_token_payload, smile_payload, _noir_payload
+=======
+        _noir_payload, smile_payload, _smile_token_payload
+>>>>>>> Stashed changes
+    ): (Array<felt252>, Array<felt252>, Array<felt252>) =
+        Serde::deserialize(
+        ref payloads_span
+    )
+        .unwrap();
+
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
     let mut conv: Array<i32> = ArrayTrait::new();
     let mut n = 0;
     
-    let payload = image.clone();
-
-    while n < image.len() {
-        let val:i32 =(*image[n]).try_into().unwrap();
+    while n < smile_payload.len() {
+        let val:i32 =(*smile_payload[n]).try_into().unwrap();
         conv.append(val);
         n = n +1;
     };
@@ -297,7 +320,7 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     let success = result >= -146633_i32;
 
     processHyleOutput(
-        1, initial_state.clone(), initial_state.clone(), identity, 0, payload, success, program_output,
+        1, initial_state.clone(), initial_state.clone(), identity, 0, payloads, success, program_output,
     )
 }
 
@@ -310,7 +333,7 @@ struct HyleOutput {
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payload_hash: felt252,
+    payloads: Array<felt252>,
     success: bool,
     program_outputs: Array<felt252>
 }
@@ -338,14 +361,10 @@ fn processHyleOutput(
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payload: Array<felt252>,
+    payloads: Array<felt252>,
     success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
-    // Hashing payload
-    let payload_span = payload.span();
-    let payload_hash = compute_hash_on_elements(payload_span);
-
     // HyleOutput
     let hyle_output = HyleOutput {
         version: version,
@@ -353,7 +372,7 @@ fn processHyleOutput(
         next_state: next_state,
         identity: identity,
         tx_hash: tx_hash,
-        payload_hash: payload_hash,
+        payloads: payloads,
         success: success,
         program_outputs: program_output,
     };
