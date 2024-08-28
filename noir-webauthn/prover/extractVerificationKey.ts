@@ -14,6 +14,6 @@ export const exportNoirVerificationKey = async (webAuthnCircuit: CompiledCircuit
     return;
 }
 
-await exportNoirVerificationKey(webAuthnCircuit);
+await exportNoirVerificationKey(webAuthnCircuit as CompiledCircuit);
 
 process.exit();
