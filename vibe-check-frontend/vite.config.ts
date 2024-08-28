@@ -3,6 +3,8 @@ import path from "path";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import vue from "@vitejs/plugin-vue";
 import copy from "rollup-plugin-copy";
+import { viteStaticCopy } from 'vite-plugin-static-copy'
+
 
 import { visualizer } from "rollup-plugin-visualizer";
 import analyze from "rollup-plugin-analyzer";
@@ -36,6 +38,14 @@ export default defineConfig({
     plugins: [
         topLevelAwait(),
         vue(),
+        viteStaticCopy({
+            targets: [
+              {
+                src: "node_modules/onnxruntime-web/**/*.wasm",
+                dest: '/node_modules/.vite/deps'
+              }
+            ]
+        }),
         copy({
             targets: [
                 {
@@ -46,10 +56,10 @@ export default defineConfig({
                     src: "node_modules/@noir-lang/**/*.wasm",
                     dest: "node_modules/.vite/deps",
                 },
-                {
-                    src: "node_modules/onnxruntime-web/dist/*.wasm",
-                    dest: "node_modules/.vite/deps",
-                },
+                // {
+                //     src: "node_modules/onnxruntime-web/dist/*.wasm",
+                //     dest: "node_modules/.vite/deps",
+                // },
             ],
             copySync: true,
             hook: "buildStart",

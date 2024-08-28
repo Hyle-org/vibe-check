@@ -1,7 +1,7 @@
 import { BarretenbergBackend, CompiledCircuit } from "@noir-lang/backend_barretenberg";
 import { Noir } from "@noir-lang/noir_js";
 import webAuthnCircuit from "./webauthn.json";
-import { ECDSAArgs } from "@/smart_contracts/SmartContract";
+import { ECDSAArgs } from "../SmartContract";
 
 // Circuit tools setup
 // Preloaded so the server starts downloading early and minimize latency.
@@ -11,30 +11,26 @@ noir.generateProof({}).catch((_) => {
     import("@aztec/bb.js");
 });
 
-export const proveECDSA = async (webAuthnValues: ECDSAArgs) => {
+export const proveECDSA = async (args: ECDSAArgs) => {
+    let initial_state = [0, 0, 0, 0];
+    let next_state = [0, 0, 0, 0];
+    let tx_hash = [0];
     const noirInput = {
         // TODO: remove generic values
         version: 1,
-        initial_state_len: 4,
-        initial_state: [0, 0, 0, 0],
-        next_state_len: 4,
-        next_state: [0, 0, 0, 0],
-        identity_len: 56,
-        identity: webAuthnValues.identity,
-        tx_hash_len: 43,
-        tx_hash: webAuthnValues.challenge,
-        payload_hash: 0,
+        initial_state_len: initial_state.length,
+        initial_state: initial_state,
+        next_state_len: next_state.length,
+        next_state: next_state,
+        identity_len: args.identity,
+        identity: args.identity,
+        tx_hash_len: tx_hash.length,
+        tx_hash: tx_hash,
         success: true,
-        program_outputs: {
-            authenticator_data: webAuthnValues.authenticator_data,
-            client_data_json_len: webAuthnValues.client_data_json_len,
-            client_data_json: webAuthnValues.client_data_json,
-            signature: webAuthnValues.signature,
-            pub_key_x: webAuthnValues.pub_key_x,
-            pub_key_y: webAuthnValues.pub_key_y,
-        },
+        payloads: args.payloads.slice(1, -1).split(" "), // contains all the webauthn values, parsed as in Cairo
     };
     // Proving
+    console.log("noir input:", noirInput);    
     const proof = await noir.generateProof(noirInput);
     return JSON.stringify({
         publicInputs: proof.publicInputs,

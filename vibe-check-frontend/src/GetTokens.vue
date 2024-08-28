@@ -4,9 +4,8 @@ import * as ort from 'onnxruntime-web';
 import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
 import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
 import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
-import { getBalances } from "@/smart_contracts/SmileTokenIndexer";
 
-import { setupCosmos, checkTxStatus } from "hyle-js";
+import { setupCosmos, checkTxStatus, MsgPublishPayloads } from "hyle-js";
 
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
@@ -14,7 +13,7 @@ import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
-import type { CairoArgs, CairoSmileArgs, ECDSAArgs } from "@/smart_contracts/SmartContract";
+import type { CairoSmileTokenPayloadArgs, ECDSAPayloadArgs, CairoSmilePayloadArgs, ECDSAArgs, CairoSmileArgs, CairoSmileTokenArgs, PayloadTx } from "@/smart_contracts/SmartContract";
 import { DeliverTxResponse } from "@cosmjs/stargate";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
 
@@ -44,14 +43,15 @@ const txHash = ref<string | null>(null);
 const {
     ecdsaPromiseDone,
     smilePromiseDone,
-    erc20PromiseDone,
-    proveAndSendProofsTx,
+    smileTokenPromiseDone,
+    computePayloadsAndProve
 } = useProving(status as any, error, txHash);
 
-let erc20Args: CairoArgs;
-let smileArgs: CairoSmileArgs;
-let webAuthnValues: ECDSAArgs;
-let payloadResp: DeliverTxResponse;
+let webAuthnPayloadArgs: ECDSAPayloadArgs;
+let smilePayloadArgs: CairoSmilePayloadArgs;
+let smileTokenPayloadArgs: CairoSmileTokenPayloadArgs;
+let payloadTxResp: DeliverTxResponse;
+let payloadTx: PayloadTx;
 
 // Match screen to status
 watchEffect(() => {
@@ -241,10 +241,6 @@ const imageToGrayScale = (image: ImageData): Float32Array => {
     return grayscaleArray;
 }
 
-const sigmoid = (x: number) => {
-    return Math.exp(x) / (Math.exp(x) + 1);
-};
-
 const checkVibe = async (isSmilingProbability: number) => {
     vibeCheckStatus.value = null;
     status.value = "checking_vibe";
@@ -258,6 +254,7 @@ const checkVibe = async (isSmilingProbability: number) => {
         status.value = "success_vibe";
     }
 }
+
 const getSmileProbability = async (image: ImageBitmap, x: number, y: number, width: number, height: number) => {
     const small = document.createElement("canvas");
     const smallCtx = small.getContext("2d")!;
@@ -315,38 +312,32 @@ const signAndSendPayloadTx = async () => {
         });
 
         const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
-        webAuthnValues = {
-            ...await signChallengeWithWebAuthn(challenge),
-            identity: identity,
-        }
+        webAuthnPayloadArgs = await signChallengeWithWebAuthn(challenge);
+        console.log("webAuthnPayloadArgs.challenge: ", webAuthnPayloadArgs.challenge)
 
         // Start locally proving that we are who we claim to be by signing the transaction hash
         // Send the proof of smile to Giza or something
         const cairoGrayScale = grayScale.map(pixel => Math.round(pixel * 100000))
 
-        smileArgs = {
-            identity: identity,
+        smilePayloadArgs = {
             image: [...cairoGrayScale]
         };
 
         // Locally or backend prove an erc20 transfer
-        erc20Args = {
-            balances: getBalances(),
+        smileTokenPayloadArgs = {
             from: "faucet",
             to: identity,
             amount: 100,
         };
 
-
-        // Send the transaction
-        payloadResp = await broadcastVibeCheckPayload(
+        // Create and send the transaction
+        [payloadTx, payloadTxResp] = await broadcastVibeCheckPayload(
             identity,
-            webAuthnValues,
-            smileArgs,
-            erc20Args,
+            webAuthnPayloadArgs,
+            smilePayloadArgs,
+            smileTokenPayloadArgs,
         );
-
-        console.log("PayloadTx: ", payloadResp.transactionHash)
+        console.log("PayloadTx: ", payloadTxResp.transactionHash)
 
         // Switch to waiter view
         status.value = "checking_payload_tx";
@@ -355,10 +346,10 @@ const signAndSendPayloadTx = async () => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Check the status of the TX
-        const txStatus = await checkTxStatus(payloadResp.transactionHash);
+        const txStatus = await checkTxStatus(payloadTxResp.transactionHash);
         if (txStatus.status === "success") {
             status.value = "payload_tx_success";
-            txHash.value = payloadResp.transactionHash;
+            txHash.value = payloadTxResp.transactionHash;
         } else {
             status.value = "payload_tx_failure";
             error.value = txStatus.error || "Unknown error";
@@ -371,7 +362,12 @@ const signAndSendPayloadTx = async () => {
 }
 
 const proveRemotely = async () => {
-    await proveAndSendProofsTx(txHash.value!, webAuthnValues, smileArgs, erc20Args);
+    // payloadTx has been created for cosmos compatibility. Needs formatting to be casted as MsgPublishPayload
+    let parsedTransaction: MsgPublishPayloads = {identity: payloadTx.identity, payloads: []};
+    parsedTransaction.payloads = payloadTx.payloads.map(dict => {
+        return {contractName: dict.contractName, data: new TextEncoder().encode(window.atob(dict.data))}
+    });
+    await computePayloadsAndProve(parsedTransaction, txHash.value!);
 }
 
 const vTriggerScroll = {
@@ -516,7 +512,7 @@ const vTriggerScroll = {
                                     <p class="flex items-center">Generating proof of smile: <i v-if="!smilePromiseDone"
                                             class="spinner"></i><span v-else>✅</span></p>
                                     <p class="flex items-center">Generating ERC20 claim proof: <i
-                                            v-if="!erc20PromiseDone" class="spinner"></i><span v-else>✅</span></p>
+                                            v-if="!smileTokenPromiseDone" class="spinner"></i><span v-else>✅</span></p>
                                     <p class="flex items-center gap-1">Sending Proofs: <i v-if="status === 'proving'"
                                             class="spinner"></i><span v-else>✅</span></p>
                                     <div v-if="status === 'checking_tx'"
