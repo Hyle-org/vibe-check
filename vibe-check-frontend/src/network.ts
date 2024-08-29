@@ -28,6 +28,13 @@ export const getCairoProverUrl = () => {
     }[network];
 };
 
+export const getNoirProverUrl = () => {
+    return {
+        localhost: "http://localhost:3001",
+        devnet: "https://vibe.hyle.eu/noirprover",
+    }[network];
+};
+
 export const getRpId = () => {
     return {
         localhost: "localhost",

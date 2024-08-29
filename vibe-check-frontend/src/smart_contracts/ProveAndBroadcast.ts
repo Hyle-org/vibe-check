@@ -48,7 +48,7 @@ export function useProving(
             // The order we expect them is the order they're most likely going to finish in.
             const smileTokenResp = await broadcastProofTx(txHash, 2, "smile_token", uint8ArrayToBase64(await smileTokenPromise));
             const smileResp = await broadcastProofTx(txHash, 1, "smile", uint8ArrayToBase64(await smilePromise));
-            const ecdsaResp = await broadcastProofTx(txHash, 0, "ecdsa_secp256r1", window.btoa(await ecdsaPromise));
+            const ecdsaResp = await broadcastProofTx(txHash, 0, "ecdsa_secp256r1", uint8ArrayToBase64(await ecdsaPromise));
             console.log("ecdsaProofTx: ", ecdsaResp.transactionHash);
             console.log("smileProofTx: ", smileResp.transactionHash);
             console.log("smileTokenProofTx: ", smileTokenResp.transactionHash);
@@ -84,14 +84,10 @@ export function useProving(
     
         // getting values needed to prove each contract
         let identity = getIdentity(parsedTransaction);
-        // TODO: use txHash for the challenge
-        console.log("parsedTransaction: ", new TextDecoder().decode(parsedTransaction?.payloads[0].data));
-        let challenge = [...Uint8Array.from("0123456789abcdef0123456789abcdef", (c) => c.charCodeAt(0))];
     
         // for webauthn
         const ecdsaArgs: ECDSAArgs = {
             identity: identity,
-            challenge: challenge,
             payloads: gatheredPayloads,
         };
         // for smile
