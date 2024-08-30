@@ -10,7 +10,7 @@ import {
 } from "./webauthn";
 import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
 
-import { setupCosmos, checkTxStatus } from "hyle-js";
+import { setupCosmos, checkTxStatus, MsgPublishPayloads } from "hyle-js";
 
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
@@ -22,6 +22,7 @@ import type {
     CairoSmileTokenPayloadArgs,
     ECDSAPayloadArgs,
     CairoSmilePayloadArgs,
+    PayloadTx,
 } from "@/smart_contracts/SmartContract";
 import { DeliverTxResponse } from "@cosmjs/stargate";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
@@ -59,7 +60,7 @@ let webAuthnPayloadArgs: ECDSAPayloadArgs;
 let smilePayloadArgs: CairoSmilePayloadArgs;
 let smileTokenPayloadArgs: CairoSmileTokenPayloadArgs;
 let payloadTxResp: DeliverTxResponse;
-let payloadTx: { identity: string; payloads: { contractsName: string[]; data: string } };
+let payloadTx: PayloadTx;
 
 // Match screen to status
 watchEffect(() => {
@@ -399,7 +400,12 @@ const signAndSendPayloadTx = async () => {
 };
 
 const proveRemotely = async () => {
-    await computePayloadsAndProve(payloadTx, txHash.value!);
+    // payloadTx has been created for cosmos compatibility. Needs formatting to be casted as MsgPublishPayload
+    let parsedTransaction: MsgPublishPayloads = { identity: payloadTx.identity, payloads: [] };
+    parsedTransaction.payloads = payloadTx.payloads.map((dict) => {
+        return { contractName: dict.contractName, data: new TextEncoder().encode(window.atob(dict.data)) };
+    });
+    await computePayloadsAndProve(parsedTransaction, txHash.value!);
 };
 
 const vTriggerScroll = {

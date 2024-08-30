@@ -5,7 +5,10 @@ import {
     type CairoSmileTokenPayloadArgs,
     type CairoSmilePayloadArgs,
     type ECDSAPayloadArgs,
-    computePayload,
+    computeWebAuthnPayload,
+    computeSmilePayload,
+    computeSmileTokenPayload,
+    PayloadTx,
 } from "./smart_contracts/SmartContract.ts";
 import { DeliverTxResponse } from "@cosmjs/stargate";
 
@@ -14,15 +17,25 @@ export async function broadcastVibeCheckPayload(
     webAuthnValues: ECDSAPayloadArgs,
     smileArgs: CairoSmilePayloadArgs,
     smileTokenArgs: CairoSmileTokenPayloadArgs,
-): Promise<[{identity: string, payloads: {contractsName: string[], data: string}}, DeliverTxResponse]> {
+): Promise<[PayloadTx, DeliverTxResponse]> {
     let payloadTx = {
         identity: identity,
-        payloads: {
-            contractsName: ["ecdsa_secp256r1", "smile", "smile_token"],
-            data: computePayload(webAuthnValues, smileArgs, smileTokenArgs)
-        },
+        payloads: [
+            {
+                contractName: "ecdsa_secp256r1",
+                data: window.btoa(computeWebAuthnPayload(webAuthnValues)),
+            },
+            {
+                contractName: "smile",
+                data: window.btoa(computeSmilePayload(smileArgs)),
+            },
+            {
+                contractName: "smile_token",
+                data: window.btoa(computeSmileTokenPayload(smileTokenArgs)),
+            },
+        ]
     }
-    return [payloadTx, await broadcastPayloadTx(payloadTx)];
+    return [payloadTx, await broadcastPayloadTx(payloadTx.identity, payloadTx.payloads)];
 }
 
 export async function ensureContractsRegistered() {

@@ -35,6 +35,11 @@ export type ECDSAPayloadArgs = {
     pub_key_y: number[];
 };
 
+export type PayloadTx = {
+    identity: string,
+    payloads: {contractName: string, data: string}[]
+}
+
 // export function parseECDSAPayload(txHash: string, identity: string, data?: Uint8Array) {
 //     if (!data) return undefined;
 
@@ -98,19 +103,9 @@ export type ECDSAPayloadArgs = {
 
 export function parseSmileTokenPayload(data?: Uint8Array) {
     if (!data) return undefined;
-    // Smile token is the third payload in the list
     const parsed = new TextDecoder().decode(data);
     const felts = parsed.slice(1, -1).split(" ");
     const _payloadSize = parseInt(felts.shift() as string);
-    const _webAuthnPayloadSize = parseInt(felts.shift() as string);
-    for (let i = 0; i < _webAuthnPayloadSize; i++) {
-        felts.shift();
-    }
-    const _smilePayloadSize = parseInt(felts.shift() as string);
-    for (let i = 0; i < _smilePayloadSize; i++) {
-        felts.shift();
-    }
-    const _smileTokenpayloadSize = parseInt(felts.shift() as string);
     const fromSize = parseInt(felts[0]);
     const from = deserByteArray(felts.slice(0, fromSize + 3));
     const toSize = parseInt(felts[3 + fromSize]);
@@ -125,19 +120,12 @@ export function parseSmileTokenPayload(data?: Uint8Array) {
 
 export function parseMLPayload(data?: Uint8Array) {
     if (!data) return [];
-    // Smile is the second payload in the list
-    const parsed = new TextDecoder().decode(data);
-    const felts = parsed.slice(1, -1).split(" ");
-    const _payloadSize = parseInt(felts.shift() as string);
-    const _webAuthnPayloadSize = parseInt(felts.shift() as string);
-    for (let i = 0; i < _webAuthnPayloadSize; i++) {
-        felts.shift();
-    }
-    const _smilePayloadSize = parseInt(felts.shift() as string);
-    let numbers : string[] = []
-    for (let i = 0; i < _smilePayloadSize; i++) {
-        numbers.push(felts.shift() as string);
-    }
+    const asb64 = uint8ArrayToBase64(data);
+    // Parse base64 into ascii
+    const ascii = atob(asb64);
+    // At this point it's a list of numbers separated by spaces
+    let numbers = ascii.slice(1, -1).split(" ");
+    let _imageSize = numbers.shift();
     return numbers;
 }
 
@@ -192,15 +180,11 @@ export function computeSmileTokenPayload(args: CairoSmileTokenPayloadArgs): stri
 }
 
 // Gathering all payloads into one
-export function computePayload(
-    ecdsaPayloadArgs: ECDSAPayloadArgs,
-    smilePayloadArgs: CairoSmilePayloadArgs,
-    smileTokenPayloadArgs: CairoSmileTokenPayloadArgs
-){
-    let payloadWebAuthnPayload = computeWebAuthnPayload(ecdsaPayloadArgs).slice(1, -1);
-    let payloadSmile = computeSmilePayload(smilePayloadArgs).slice(1, -1);
-    let payloadSmileToken = computeSmileTokenPayload(smileTokenPayloadArgs).slice(1, -1);
+export function computePayload(payloadWebAuthnb64?: Uint8Array, payloadSmileb64?: Uint8Array, payloadSmileTokenb64?: Uint8Array){
+    let payloadWebAuthn = new TextDecoder().decode(payloadWebAuthnb64).slice(1, -1);
+    let payloadSmile = new TextDecoder().decode(payloadSmileb64).slice(1, -1);
+    let payloadSmileToken = new TextDecoder().decode(payloadSmileTokenb64).slice(1, -1);
 
-    let length = payloadWebAuthnPayload.split(" ").length + payloadSmile.split(" ").length + payloadSmileToken.split(" ").length
-    return `[${length} ${payloadWebAuthnPayload} ${payloadSmile} ${payloadSmileToken}]`;
+    let length = payloadWebAuthn.split(" ").length + payloadSmile.split(" ").length + payloadSmileToken.split(" ").length
+    return `[${length} ${payloadWebAuthn} ${payloadSmile} ${payloadSmileToken}]`;
 }

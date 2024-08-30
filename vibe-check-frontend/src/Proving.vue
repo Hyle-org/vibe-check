@@ -36,17 +36,6 @@ function createMlImage(numbers: string[]) {
     return canvas.toDataURL();
 }
 
-function computeMshPublishPayloadsAndProve(parsedTransactions: MsgPublishPayloads, txHash: string) {
-    let payloadTx = {
-        identity: parsedTransactions.identity,
-        payloads: {
-            contractsName: ["ecdsa_secp256r1", "smile", "smile_token"],
-            data: new TextDecoder().decode(parsedTransactions.payloads?.data),
-        },
-    };
-    computePayloadsAndProve(payloadTx, txHash);
-}
-
 const {
     ecdsaPromiseDone,
     smilePromiseDone,
@@ -91,7 +80,7 @@ const {
                     <img
                         v-if="tx.type"
                         class="min-w-12"
-                        :src="createMlImage(parseMLPayload(getPayload(parsedTransactions[tx.hash])))"
+                        :src="createMlImage(parseMLPayload(getPayload(parsedTransactions[tx.hash], 'smile')))"
                     />
                     <div class="ml-4 inline-flex flex-col flex-1">
                         <p>
@@ -99,15 +88,15 @@ const {
                         </p>
                         <p>
                             {{
-                                formatSmileTokenPayload(parseSmileTokenPayload(getPayload(parsedTransactions[tx.hash])))
+                                formatSmileTokenPayload(
+                                    parseSmileTokenPayload(getPayload(parsedTransactions[tx.hash], "smile_token")),
+                                )
                             }}
                         </p>
                     </div>
                 </div>
                 <div class="w-24 px-4 border-l-2" v-if="tx.status === 'sequenced'">
-                    <button @click="computeMshPublishPayloadsAndProve(parsedTransactions[tx.hash], tx.hash)">
-                        Prove
-                    </button>
+                    <button @click="computePayloadsAndProve(parsedTransactions[tx.hash], tx.hash)">Prove</button>
                 </div>
             </div>
         </div>
