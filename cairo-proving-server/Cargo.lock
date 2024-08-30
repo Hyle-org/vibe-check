@@ -453,7 +453,7 @@ dependencies = [
 [[package]]
 name = "cairo-verifier"
 version = "0.1.0"
-source = "git+https://github.com/Hyle-org/hyle?branch=feat/fix_ordering#b6f1e6a5c557763044513534c4963d3c831c7454"
+source = "git+https://github.com/Hyle-org/hyle?branch=feat/simplify-payload-hashing#74b27cd921743b5a033a0fd274b823860126c5c3"
 dependencies = [
  "bincode 2.0.0-rc.2",
  "cairo-platinum-prover",
@@ -952,7 +952,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "hyle_contract"
 version = "0.1.0"
-source = "git+https://github.com/Hyle-org/hyle?branch=feat/fix_ordering#b6f1e6a5c557763044513534c4963d3c831c7454"
+source = "git+https://github.com/Hyle-org/hyle?branch=feat/simplify-payload-hashing#74b27cd921743b5a033a0fd274b823860126c5c3"
 dependencies = [
  "serde",
 ]

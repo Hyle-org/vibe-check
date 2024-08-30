@@ -1,28 +1,28 @@
 [package]
-    name = "cairo-proving-server"
-    version = "0.1.0"
-    edition = "2021"
+name = "cairo-proving-server"
+version = "0.1.0"
+edition = "2021"
 
 [dependencies]
-    cairo-verifier = { git = "https://github.com/Hyle-org/hyle", branch = "feat/fix_ordering", default_features = false }
-    tokio = { version = "1.37.0", features = ["full"] }
-    axum = { version = "0.7.5", features = ["macros", "multipart"] }
-    axum-extra = { version = "0.9.3", features = ["query"] }
-    itertools = "0.13.0"
-    anyhow = "1.0.82"
-    fern = "0.6.2"
-    log = "0.4.21"
-    http-body-util = "0.1.1"
-    indoc = "2.0.5"
-    base64 = "0.22.1"
-    zip = "2.1.3"
-    tower-http = { version = "0.5.2", features = ["cors"] }
-    tower = { version = "0.4.13", features = ["limit"] }
+cairo-verifier = { git = "https://github.com/Hyle-org/hyle", branch = "feat/simplify-payload-hashing", default_features = false }
+tokio = { version = "1.37.0", features = ["full"] }
+axum = { version = "0.7.5", features = ["macros", "multipart"] }
+axum-extra = { version = "0.9.3", features = ["query"] }
+itertools = "0.13.0"
+anyhow = "1.0.82"
+fern = "0.6.2"
+log = "0.4.21"
+http-body-util = "0.1.1"
+indoc = "2.0.5"
+base64 = "0.22.1"
+zip = "2.1.3"
+tower-http = { version = "0.5.2", features = ["cors"] }
+tower = { version = "0.4.13", features = ["limit"] }
 
 [features]
-    default = ["parallel"]
-    parallel = ["cairo-verifier/parallel"]
+default = ["parallel"]
+parallel = ["cairo-verifier/parallel"]
 
 [[bin]]
-    name = "cairo-proving-server"
-    path = "src/main.rs"
+name = "cairo-proving-server"
+path = "src/main.rs"
