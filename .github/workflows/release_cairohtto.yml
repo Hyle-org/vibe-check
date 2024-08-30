@@ -1,6 +1,5 @@
 name: Build and publish a Docker image to ghcr.io
 on:
-
   # publish on releases, e.g. v2.1.13 (image tagged as "2.1.13" - "v" prefix is removed)
   release:
     types: [ published ]
@@ -13,10 +12,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
-        working-directory: ./cairo-proving-server
       - name: Build and publish a Docker image for cairohttp
-        working-directory: ./cairo-proving-server
         uses: macbre/push-to-ghcr@master
         with:
-          image_name: cairohttp  # it will be lowercased internally
+          image_name: hyle-org/cairohttp  # it will be lowercased internally
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          context: ./cairo-proving-server
+          dockerfile: ./cairo-proving-server/Dockerfile
