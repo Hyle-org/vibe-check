@@ -15,13 +15,9 @@ export function useProving(
     const smilePromiseDone = ref(false);
     const smileTokenPromiseDone = ref(false);
 
-    function getPayload(parsedTransaction: MsgPublishPayloads | undefined, contract: string){
+    function getPayload(parsedTransaction: MsgPublishPayloads | undefined){
         if (!parsedTransaction) return undefined;
-        return parsedTransaction.payloads.find((x) => x.contractName === contract)?.data;
-    }
-
-    function getIdentity(parsedTransaction: MsgPublishPayloads | undefined) {
-        return parsedTransaction?.identity ?? "";
+        return parsedTransaction.payloads?.data;
     }
 
     const proveAndSendProofsTx = async (
@@ -40,14 +36,14 @@ export function useProving(
             const smileTokenPromise = proveSmileTokenTransfer(smileTokenArgs);
 
             ecdsaPromise.then(() => (ecdsaPromiseDone.value = true));
-            smileTokenPromise.then(() => (smileTokenPromiseDone.value = true));
             smilePromise.then(() => (smilePromiseDone.value = true));
+            smileTokenPromise.then(() => (smileTokenPromiseDone.value = true));
 
             // Send the proofs transactions
             // The order we expect them is the order they're most likely going to finish in.
+            const ecdsaResp = await broadcastProofTx(txHash, 0, "ecdsa_secp256r1", uint8ArrayToBase64(await ecdsaPromise));
             const smileTokenResp = await broadcastProofTx(txHash, 2, "smile_token", uint8ArrayToBase64(await smileTokenPromise));
             const smileResp = await broadcastProofTx(txHash, 1, "smile", uint8ArrayToBase64(await smilePromise));
-            const ecdsaResp = await broadcastProofTx(txHash, 0, "ecdsa_secp256r1", uint8ArrayToBase64(await ecdsaPromise));
             console.log("ecdsaProofTx: ", ecdsaResp.transactionHash);
             console.log("smileProofTx: ", smileResp.transactionHash);
             console.log("smileTokenProofTx: ", smileTokenResp.transactionHash);
@@ -74,30 +70,21 @@ export function useProving(
         }
     };
 
-    const computePayloadsAndProve = async (parsedTransaction: MsgPublishPayloads | undefined, txHash: string) => {
-        // getting each payloads to process the main payload
-        let payloadWebAuthn = getPayload(parsedTransaction, "ecdsa_secp256r1");
-        let payloadSmile = getPayload(parsedTransaction, "smile");
-        let payloadSmileToken = getPayload(parsedTransaction, "smile_token");
-        let gatheredPayloads = computePayload(payloadWebAuthn, payloadSmile, payloadSmileToken);
-    
-        // getting values needed to prove each contract
-        let identity = getIdentity(parsedTransaction);
-    
+    const computePayloadsAndProve = async (payloadTx: { identity: string; payloads: { contractsName: string[]; data: string; }; }, txHash: string) => {
         // for webauthn
         const ecdsaArgs: ECDSAArgs = {
-            identity: identity,
-            payloads: gatheredPayloads,
+            identity: payloadTx.identity,
+            payloads: payloadTx.payloads.data,
         };
         // for smile
         const smileArgs: CairoSmileArgs = {
-            identity: identity,
-            payloads: gatheredPayloads,
+            identity: payloadTx.identity,
+            payloads: payloadTx.payloads.data,
         };
         // for smileToken
         const smileTokenArgs: CairoSmileTokenArgs = {
             balances: getBalances(),
-            payloads: gatheredPayloads,
+            payloads: payloadTx.payloads.data,
         };
     
         await proveAndSendProofsTx(txHash, ecdsaArgs, smileArgs, smileTokenArgs);

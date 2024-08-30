@@ -396,16 +396,11 @@ const signAndSendPayloadTx = async () => {
         error.value = `${e}`;
         status.value = "failed_at_payload";
     }
-}
+};
 
 const proveRemotely = async () => {
-    // payloadTx has been created for cosmos compatibility. Needs formatting to be casted as MsgPublishPayload
-    let parsedTransaction: MsgPublishPayloads = {identity: payloadTx.identity, payloads: []};
-    parsedTransaction.payloads = payloadTx.payloads.map(dict => {
-        return {contractName: dict.contractName, data: new TextEncoder().encode(window.atob(dict.data))}
-    });
-    await computePayloadsAndProve(parsedTransaction, txHash.value!);
-}
+    await computePayloadsAndProve(payloadTx, txHash.value!);
+};
 
 const vTriggerScroll = {
     mounted(el: HTMLDivElement) {

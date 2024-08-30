@@ -14,25 +14,15 @@ export async function broadcastVibeCheckPayload(
     webAuthnValues: ECDSAPayloadArgs,
     smileArgs: CairoSmilePayloadArgs,
     smileTokenArgs: CairoSmileTokenPayloadArgs,
-): Promise<[PayloadTx, DeliverTxResponse]> {
+): Promise<[{identity: string, payloads: {contractsName: string[], data: string}}, DeliverTxResponse]> {
     let payloadTx = {
         identity: identity,
-        payloads: [
-            {
-                contractName: "ecdsa_secp256r1",
-                data: window.btoa(computeWebAuthnPayload(webAuthnValues)),
-            },
-            {
-                contractName: "smile",
-                data: window.btoa(computeSmilePayload(smileArgs)),
-            },
-            {
-                contractName: "smile_token",
-                data: window.btoa(computeSmileTokenPayload(smileTokenArgs)),
-            },
-        ]
+        payloads: {
+            contractsName: ["ecdsa_secp256r1", "smile", "smile_token"],
+            data: computePayload(webAuthnValues, smileArgs, smileTokenArgs)
+        },
     }
-    return [payloadTx, await broadcastPayloadTx(payloadTx.identity, payloadTx.payloads)];
+    return [payloadTx, await broadcastPayloadTx(payloadTx)];
 }
 
 export async function ensureContractsRegistered() {
