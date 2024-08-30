@@ -109,9 +109,6 @@ const {
                     <i v-if="!ecdsaPromiseDone" class="spinner"></i>
                     <span v-else>✅</span>
                 </p>
-                <p class="text-sm mb-1 text-opacity-80 italic">
-                    (This is actually done client-side so it takes a while)
-                </p>
                 <p class="flex items-center">
                     Generating proof of smile: <i v-if="!smilePromiseDone" class="spinner"></i><span v-else>✅</span>
                 </p>

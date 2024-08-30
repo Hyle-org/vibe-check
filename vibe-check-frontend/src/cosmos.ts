@@ -2,13 +2,10 @@ import { checkContractExists, registerContract, base64ToUint8Array, broadcastPay
 import { hashBalance } from "./smart_contracts/cairo/CairoHash.ts";
 import { network } from "./network.ts";
 import {
-    computeSmileTokenPayload,
-    computeSmilePayload,
-    computeWebAuthnPayload,
     type CairoSmileTokenPayloadArgs,
     type CairoSmilePayloadArgs,
     type ECDSAPayloadArgs,
-    PayloadTx,
+    computePayload,
 } from "./smart_contracts/SmartContract.ts";
 import { DeliverTxResponse } from "@cosmjs/stargate";
 

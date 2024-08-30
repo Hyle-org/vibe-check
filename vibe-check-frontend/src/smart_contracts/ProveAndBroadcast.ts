@@ -1,10 +1,9 @@
 import { ref } from "vue";
-import { MsgPublishPayloads, uint8ArrayToBase64 } from "hyle-js";
+import { broadcastProofTx, checkTxesStatus, MsgPublishPayloads, uint8ArrayToBase64 } from "hyle-js";
 
 import { proveSmile, proveSmileTokenTransfer } from "@/smart_contracts/cairo/prover";
 import { proveECDSA } from "@/smart_contracts/noir/prover";
-import { broadcastProofTx, checkTxesStatus } from "hyle-js";
-import { CairoSmileArgs, CairoSmileTokenArgs, computePayload, ECDSAArgs } from "./SmartContract";
+import { CairoSmileArgs, CairoSmileTokenArgs, ECDSAArgs } from "./SmartContract";
 import { getBalances } from "./SmileTokenIndexer";
 
 export function useProving(
