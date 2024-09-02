@@ -1,17 +1,9 @@
 <script setup lang="ts">
 import Socials from "./components/Socials.vue";
-import { computed } from "vue";
+import { computed, reactive, ref } from "vue";
 import { network } from "./network";
 import { MsgPublishPayloads, getParsedTx, deserByteArray, getNetworkRpcUrl } from "hyle-js";
-import { allTransactions, getBalancesAtTx } from "@/smart_contracts/SmileTokenIndexer";
-
-import { parseECDSAPayload, parseErc20Payload, parseMLPayload } from '@/smart_contracts/SmartContract';
-import type { CairoArgs, CairoSmileArgs } from "@/smart_contracts/SmartContract";
-
-import { setupCosmos } from "hyle-js";
-import { useProving } from "./smart_contracts/ProveAndBroadcast";
-
-const setup = setupCosmos(getNetworkRpcUrl(network)!);
+import { allTransactions, getBalances, getBalancesAtTx } from "./SmileTokenIndexer";
 
 const parsedTransactions = computed(() => {
     const ret = {} as Record<string, MsgPublishPayloads>;
@@ -22,16 +14,44 @@ const parsedTransactions = computed(() => {
     return ret;
 })
 
-function getIdentity(txHash: string) {
-    return parsedTransactions.value?.[txHash]?.identity ?? "";
-}
-
 function getPayload(txHash: string, contract: string) {
     const data = parsedTransactions.value?.[txHash] as MsgPublishPayloads | undefined;
     if (!data)
         return undefined;
     return data.payloads.find(x => x.contractName === contract)?.data;
 }
+
+
+function parseECDSAPayload(data?: Uint8Array) {
+    if (!data)
+        return "Unknown";
+    return JSON.parse(window.atob(uint8ArrayToBase64(data)));
+}
+
+function parseErc20Payload(data?: Uint8Array) {
+    if (!data)
+        return "Unknown";
+    const parsed = new TextDecoder().decode(data);
+    const felts = parsed.slice(1, -1).split(" ");
+    const fromSize = parseInt(felts[0]);
+    const from = deserByteArray(felts.slice(0, fromSize + 3));
+    const toSize = parseInt(felts[3 + fromSize]);
+    const to = deserByteArray(felts.slice(3 + fromSize, 3 + fromSize + toSize + 3));
+    const amount = parseInt(felts.slice(-1)[0]);
+    return `${from} => ${to} (${amount} hylé)`;
+}
+
+function parseMLPayload(data?: Uint8Array) {
+    if (!data)
+        return [];
+    const asb64 = uint8ArrayToBase64(data);
+    // Parse base64 into ascii
+    const ascii = atob(asb64);
+    // At this point it's a list of numbers separated by spaces
+    const numbers = ascii.slice(1, -1).split(" ");
+    return numbers;
+}
+
 function createMlImage(numbers: string[]) {
     // Create a 48x48 image
     const canvas = document.createElement("canvas");
@@ -55,19 +75,25 @@ function createMlImage(numbers: string[]) {
     return canvas.toDataURL();
 }
 
-const {
-    ecdsaPromiseDone,
-    smilePromiseDone,
-    erc20PromiseDone,
-    status,
-    error,
-    proveAndSendProofsTx,
-} = useProving();
+import { proveERC20Transfer } from "./cairo/prover";
+import { CairoArgs, CairoSmileArgs } from "./cairo/CairoHash";
+import { proveECDSA } from "./noir/prover";
+import { setupCosmos, broadcastProofTx, checkTxStatuses, checkTxStatus } from "./cosmos";
+import { uint8ArrayToBase64 } from "./utils";
 
-async function computePayloadsAndProve(txHash: string) {
-    await setup;
+const ecdsaPromiseDone = ref(false);
+const smilePromiseDone = ref(false);
+const erc20PromiseDone = ref(false);
 
-    const webAuthnValues = parseECDSAPayload(getPayload(txHash, "ecdsa_secp256r1"))!;
+const status = ref("idle" as "idle" | "proving" | "checking_tx" | "tx_success" | "tx_failure" | "failed_at_proving");
+
+const error = ref<string | null>(null);
+const sentTxHash = ref<string | null>(null);
+
+const ProveAndSendProofsTx = async (txHash: string) => {
+    const setup = setupCosmos(getNetworkRpcUrl(network)!);
+
+    const webAuthnValues = parseECDSAPayload(getPayload(txHash, "ecdsa_secp256r1"));
 
     const data = getPayload(txHash, "smile_token");
     const parsed = new TextDecoder().decode(data);
@@ -86,18 +112,72 @@ async function computePayloadsAndProve(txHash: string) {
     } as CairoArgs;
 
     const smileArgs = {
-        identity: getIdentity(txHash),
-        image: parseMLPayload(getPayload(txHash, "smile")).map((x) => parseInt(x)),
+        identity: erc20Args.to, // Mild hack
+        image: parseMLPayload(getPayload(txHash, "smile")).map(x => parseInt(x)),
     } as CairoSmileArgs;
 
-    await proveAndSendProofsTx(
-        txHash,
-        webAuthnValues,
-        smileArgs,
-        erc20Args,
-    )
-}
+    ecdsaPromiseDone.value = false;
+    smilePromiseDone.value = false;
+    erc20PromiseDone.value = false;
+    status.value = "proving";
+    try {
+        const ecdsaPromise = proveECDSA(webAuthnValues);
+        const erc20Promise = proveERC20Transfer(erc20Args);
+        // const smilePromise = proveSmile(smileArgs);
 
+        ecdsaPromise.then(() => ecdsaPromiseDone.value = true);
+        erc20Promise.then(() => erc20PromiseDone.value = true);
+        // smilePromise.then(() => smilePromiseDone.value = true);
+
+        await setup;
+
+        // Send the proofs transactions
+        const ecdsaResp = await broadcastProofTx(
+            txHash,
+            0,
+            "ecdsa_secp256r1",
+            window.btoa(await ecdsaPromise)
+        );
+        // const smileResp = await broadcastProofTx(
+        //     txHash,
+        //     1,
+        //     "smile",
+        //     uint8ArrayToBase64(await smilePromise)
+        // );
+        const erc20Resp = await broadcastProofTx(
+            txHash,
+            2,
+            "smile_token",
+            uint8ArrayToBase64(await erc20Promise)
+        );
+        console.log("ecdsaProofTx: ", ecdsaResp.transactionHash)
+        // console.log("smileProofTx: ", smileResp.transactionHash)
+        console.log("erc20ProofTx: ", erc20Resp.transactionHash)
+        // Switch to waiter view
+        status.value = "checking_tx";
+
+        // Wait a bit and assume TX will be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Check the status of the TX
+        const txStatus = await checkTxStatuses([
+            ecdsaResp.transactionHash,
+            // smileResp.transactionHash,
+            erc20Resp.transactionHash,
+        ]);
+        if (txStatus.status === "success") {
+            status.value = "tx_success";
+            sentTxHash.value = erc20Resp.transactionHash;
+        } else {
+            status.value = "tx_failure";
+            error.value = txStatus.error || "Unknown error";
+        }
+    } catch (e) {
+        console.error(e);
+        error.value = `${e}`;
+        status.value = "failed_at_proving";
+    }
+}
 </script>
 
 <template>
@@ -138,7 +218,7 @@ async function computePayloadsAndProve(txHash: string) {
                     </div>
                 </div>
                 <div class="w-24 px-4 border-l-2" v-if="tx.status === 'sequenced'">
-                    <button @click="computePayloadsAndProve(tx.hash)">Prove</button>
+                    <button @click="ProveAndSendProofsTx(tx.hash)">Prove</button>
                 </div>
             </div>
         </div>
