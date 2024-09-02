@@ -28,6 +28,7 @@ export const proveECDSA = async (args: ECDSAArgs) => {
         tx_hash_len: tx_hash.length,
         tx_hash: tx_hash,
         success: true,
+        index: 0,
         payloads: args.payloads.slice(1, -1).split(" "), // contains all the webauthn values, parsed as in Cairo
     };
     // Executing

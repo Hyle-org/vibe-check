@@ -94,17 +94,13 @@ fn update_account(balances: Array<Account>, new_account: Account) -> Array<Accou
 fn main(input: Array<felt252>) -> Array<felt252> {
     let mut input = input.span();
 
-    let (mut balances, payloads): (Array<Account>, Array<felt252>) = Serde::deserialize(ref input)
-        .unwrap();
-    let mut payloads_span = payloads.span();
-
-    let (
-        _noir_payload, _smile_payload, smile_token_payload,
-    ): (Array<felt252>, Array<felt252>, Array<felt252>) =
+    let (mut balances, index, payloads): (Array<Account>, u32, Array<Array<felt252>>) =
         Serde::deserialize(
-        ref payloads_span
+        ref input
     )
         .unwrap();
+
+    let smile_token_payload = payloads.at(index);
 
     /////// APPLICATION PART ///////
     let mut smile_token_payload_span = smile_token_payload.span();
@@ -147,6 +143,7 @@ fn main(input: Array<felt252>) -> Array<felt252> {
         next_state,
         event.to.clone(),
         0,
+        index,
         payloads.clone(),
         success,
         smile_token_payload.clone()
@@ -162,7 +159,8 @@ struct HyleOutput {
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payloads: Array<felt252>,
+    index: u32,
+    payloads: Array<Array<felt252>>,
     success: bool,
     program_outputs: Array<felt252>
 }
@@ -197,7 +195,8 @@ fn processHyleOutput(
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payloads: Array<felt252>,
+    index: u32,
+    payloads: Array<Array<felt252>>,
     success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
@@ -210,6 +209,7 @@ fn processHyleOutput(
         next_state: next_state,
         identity: identity,
         tx_hash: tx_hash,
+        index: index,
         payloads: payloads,
         success: success,
         program_outputs: program_output,

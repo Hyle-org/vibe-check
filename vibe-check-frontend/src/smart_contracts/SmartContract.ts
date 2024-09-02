@@ -156,27 +156,27 @@ export function computeWebAuthnPayload(args: ECDSAPayloadArgs): string {
     let pub_key_y = `${pub_key_y_len} ${args.pub_key_y.join(" ")}`
 
     let total_length = authenticator_data_len + client_data_json_len + challenge_len + signature_len + pub_key_x_len + pub_key_y_len + 7
-    return `[${total_length} ${authenticator_data} ${client_data_json} ${challenge} ${signature} ${pub_key_x} ${pub_key_y}]`;
+    return `${total_length} ${authenticator_data} ${client_data_json} ${challenge} ${signature} ${pub_key_x} ${pub_key_y}`;
 }
 
 // Smile
 export function computeSmileArgs(args: CairoSmileArgs): string {
-    return `[${serByteArray(args.identity)} ${args.payloads.slice(1, -1)}]`;
+    return `[${serByteArray(args.identity)} 1 ${args.payloads.slice(1, -1)}]`;
 }
 
 export function computeSmilePayload(args: CairoSmilePayloadArgs): string {
-    return `[${args.image.length} ${args.image.join(" ")}]`;
+    return `${args.image.length} ${args.image.join(" ")}`;
 }
 
 // Smile token
 export function computeSmileTokenArgs(args: CairoSmileTokenArgs): string {
     let payload = args.payloads.slice(1, -1)
     let parsedBalances = args.balances.map((x) => `${serByteArray(x.name)} ${x.amount}`).join(" ");
-    return `[${args.balances.length} ${parsedBalances} ${payload}]`;
+    return `[${args.balances.length} ${parsedBalances} 2 ${payload}]`;
 }
 export function computeSmileTokenPayload(args: CairoSmileTokenPayloadArgs): string {
     let payload = `${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`;
-    return `[${payload.split(" ").length} ${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}]`;
+    return `${payload.split(" ").length} ${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`;
 }
 
 // Gathering all payloads into one
@@ -185,6 +185,8 @@ export function computePayload(payloadWebAuthnb64?: Uint8Array, payloadSmileb64?
     let payloadSmile = new TextDecoder().decode(payloadSmileb64).slice(1, -1);
     let payloadSmileToken = new TextDecoder().decode(payloadSmileTokenb64).slice(1, -1);
 
-    let length = payloadWebAuthn.split(" ").length + payloadSmile.split(" ").length + payloadSmileToken.split(" ").length
+    // Length corresponds to the number of payloads involved in the proving
+    let length = 3
+    console.log(`[${length} ${payloadWebAuthn} ${payloadSmile} ${payloadSmileToken}]`)
     return `[${length} ${payloadWebAuthn} ${payloadSmile} ${payloadSmileToken}]`;
 }
