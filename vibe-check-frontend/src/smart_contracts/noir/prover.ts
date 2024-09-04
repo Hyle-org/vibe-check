@@ -1,43 +1,64 @@
 import { BarretenbergBackend, CompiledCircuit } from "@noir-lang/backend_barretenberg";
 import { Noir } from "@noir-lang/noir_js";
 import webAuthnCircuit from "./webauthn.json";
-import { ECDSAArgs } from "@/smart_contracts/SmartContract";
+import { ECDSAArgs } from "../SmartContract";
+import { getNoirProverUrl } from "@/network";
 
 // Circuit tools setup
 // Preloaded so the server starts downloading early and minimize latency.
 const backend = new BarretenbergBackend(webAuthnCircuit as CompiledCircuit, { threads: 4 });
-const noir = new Noir(webAuthnCircuit as CompiledCircuit, backend);
-noir.generateProof({}).catch((_) => {
+const noir = new Noir(webAuthnCircuit as CompiledCircuit);
+
+noir.execute({}).catch((_) => {
     import("@aztec/bb.js");
 });
 
-export const proveECDSA = async (webAuthnValues: ECDSAArgs) => {
+export const proveECDSA = async (args: ECDSAArgs) => {
+    let initial_state: number[] = [0, 0, 0, 0];
+    let next_state: number[] = [0, 0, 0, 0];
+    let tx_hash: number[] = [];
+    let payloads = args.payloads.slice(1, -1).split(" ");
+    let payloads_len = payloads.length;
+    // Fill payloads with 0 to match 2800 in size
+    payloads = payloads.concat(Array<string>(2800-payloads.length).fill("0"));
+
     const noirInput = {
-        // TODO: remove generic values
         version: 1,
-        initial_state_len: 4,
-        initial_state: [0, 0, 0, 0],
-        next_state_len: 4,
-        next_state: [0, 0, 0, 0],
-        identity_len: 56,
-        identity: webAuthnValues.identity,
-        tx_hash_len: 43,
-        tx_hash: webAuthnValues.challenge,
-        payload_hash: 0,
+        initial_state_len: initial_state.length,
+        initial_state: initial_state,
+        next_state_len: next_state.length,
+        next_state: next_state,
+        identity_len: args.identity.length,
+        identity: args.identity,
+        tx_hash_len: tx_hash.length,
+        tx_hash: tx_hash,
+        payloads_len: payloads_len,
+        payloads: payloads,
         success: true,
-        program_outputs: {
-            authenticator_data: webAuthnValues.authenticator_data,
-            client_data_json_len: webAuthnValues.client_data_json_len,
-            client_data_json: webAuthnValues.client_data_json,
-            signature: webAuthnValues.signature,
-            pub_key_x: webAuthnValues.pub_key_x,
-            pub_key_y: webAuthnValues.pub_key_y,
-        },
+        index: 0,
     };
+    // Executing
+    const { witness } = await noir.execute(noirInput);
+
     // Proving
-    const proof = await noir.generateProof(noirInput);
-    return JSON.stringify({
-        publicInputs: proof.publicInputs,
-        proof: Array.from(proof.proof),
-    });
+    // const proof = await backend.generateProof(witness);
+    
+    // Delegating proving to external service for performance
+    const requestOptions: RequestInit = {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/octet-stream",
+        },
+        body: Buffer.from(witness),
+    };
+
+    let proveResponse = await fetch(getNoirProverUrl() + "/prove-ecdsa", requestOptions);
+
+    if (!proveResponse.ok) {
+        throw new Error(`Failed to prove noir. Server responded with status ${proveResponse.status}`);
+    }
+    
+    const proof = new Uint8Array(await proveResponse.arrayBuffer());
+
+    return proof;
 };

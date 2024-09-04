@@ -1,5 +1,5 @@
 // Cairo Wasm
-import erc20Sierra from "./programs/smile-token-sierra.json";
+import smileTokenSierra from "./programs/smile-token-sierra.json";
 import smileSierra from "./programs/smile-sierra.json";
 import runnerInit, { wasm_cairo_run } from "./runner-pkg/cairo_runner";
 import proverInit from "./prover-pkg/cairo_verifier";
@@ -7,7 +7,7 @@ import JSZip from "jszip";
 
 import { getCairoProverUrl } from "../../network";
 import { base64ToUint8Array } from "hyle-js";
-import { computeErc20Args, computeSmileArgs } from "@/smart_contracts/SmartContract";
+import { computeSmileTokenArgs, computeSmileArgs } from "@/smart_contracts/SmartContract";
 
 interface CairoRunOutputs {
     output: string;
@@ -15,16 +15,17 @@ interface CairoRunOutputs {
     trace: ArrayBuffer;
 }
 
-var setupErc20: Promise<CairoRunOutputs>;
+var setupSmileToken: Promise<CairoRunOutputs>;
 var setupSmile: Promise<CairoRunOutputs>;
 
 onmessage = function (e) {
-    if (e.data[0] === "run-erc20") {
+    if (e.data[0] === "run-smile-token") {
         console.log("ERC20 Worker started");
-        setupErc20 = runErc20(computeErc20Args(e.data[1]));
-    } else if (e.data[0] === "prove-erc20") {
+        // TODO: changer les arguments envoyé à run smile pour ne laisser que id et computedPayload
+        setupSmileToken = runSmileToken(computeSmileTokenArgs(e.data[1]));
+    } else if (e.data[0] === "prove-smile-token") {
         console.log("Proving ERC20...");
-        proveCairoRun(setupErc20).then((result) => {
+        proveCairoRun(setupSmileToken).then((result) => {
             console.log("ERC20 Worker job done");
             postMessage(result);
         });
@@ -41,11 +42,11 @@ onmessage = function (e) {
     }
 };
 
-async function runErc20(programInputs: string) {
+async function runSmileToken(programInputs: string) {
     await runnerInit();
     await proverInit();
 
-    return wasm_cairo_run(JSON.stringify(erc20Sierra), programInputs);
+    return wasm_cairo_run(JSON.stringify(smileTokenSierra), programInputs);
 }
 
 export async function runSmile(programInputs: string) {

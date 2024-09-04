@@ -2,18 +2,7 @@ use dep::std;
 
 pub fn prefix_sha256_hash<N>(prefix_length: u8, input: [u8; N]) -> [u8; 32] {
     let mut result = [0; 32];
-    assert(
-        [1, 2, 3, 113, 114, 133, 134, 156, 242, 243].any(|x| x == prefix_length), "Length is not supported"
-    );
-    if prefix_length == 1 {
-        result = std::hash::sha256(prefix(input, [0; 1]));
-    }
-    if prefix_length == 2 {
-        result = std::hash::sha256(prefix(input, [0; 2]));
-    }
-    if prefix_length == 3 {
-        result = std::hash::sha256(prefix(input, [0; 3]));
-    }
+    assert([113, 114, 133, 134, 242, 243].any(|x| x == prefix_length), "Length is not supported");
     if prefix_length == 113 {
         result = std::hash::sha256(prefix(input, [0; 113]));
     }
@@ -25,9 +14,6 @@ pub fn prefix_sha256_hash<N>(prefix_length: u8, input: [u8; N]) -> [u8; 32] {
     }
     if prefix_length == 134 {
         result = std::hash::sha256(prefix(input, [0; 134]));
-    }
-    if prefix_length == 156 {
-        result = std::hash::sha256(prefix(input, [0; 156]));
     }
     if prefix_length == 242 {
         result = std::hash::sha256(prefix(input, [0; 242]));
@@ -54,9 +40,7 @@ pub fn check_pubkey_matches_identity(pub_key_x: [u8; 32], pub_key_y: [u8; 32], i
     let mut pub_key = [0; 64];
     for i in 0..32 {
         pub_key[i] = pub_key_x[i];
-    }
-    for j in 0..32 {
-        pub_key[j+32] = pub_key_y[j];
+        pub_key[i+32] = pub_key_y[i];
     }
     // Compute the address as the hash of the publickey
     let address: [u8; 32] = std::hash::sha256(pub_key);
@@ -71,6 +55,15 @@ pub fn check_pubkey_matches_identity(pub_key_x: [u8; 32], pub_key_y: [u8; 32], i
 fn prefix<N, M>(input: [u8; N], mut result: [u8; M]) -> [u8; M] {
     for i in 0..M {
         result[i] = input[i];
+    }
+    result
+}
+
+pub fn extract_array<N, M, T>(list: [T; N], start: u32, size: u32) -> [T; M]
+    where T: Default {
+    let mut result: [T; M] = [T::default(); M];
+    for i in 0..size {
+        result[i] = list[start + i];
     }
     result
 }

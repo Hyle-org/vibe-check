@@ -2,33 +2,40 @@ import { checkContractExists, registerContract, base64ToUint8Array, broadcastPay
 import { hashBalance } from "./smart_contracts/cairo/CairoHash.ts";
 import { network } from "./network.ts";
 import {
-    computeErc20Payload,
+    type CairoSmileTokenPayloadArgs,
+    type CairoSmilePayloadArgs,
+    type ECDSAPayloadArgs,
+    computeWebAuthnPayload,
     computeSmilePayload,
-    type CairoArgs,
-    type CairoSmileArgs,
-    type ECDSAArgs,
+    computeSmileTokenPayload,
+    PayloadTx,
 } from "./smart_contracts/SmartContract.ts";
+import { DeliverTxResponse } from "@cosmjs/stargate";
 
-export function broadcastVibeCheckPayload(
+export async function broadcastVibeCheckPayload(
     identity: string,
-    webAuthnValues: ECDSAArgs,
-    smileArgs: CairoSmileArgs,
-    erc20Args: CairoArgs,
-) {
-    return broadcastPayloadTx(identity, [
-        {
-            contractName: "ecdsa_secp256r1",
-            data: window.btoa(JSON.stringify(webAuthnValues)),
-        },
-        {
-            contractName: "smile",
-            data: window.btoa(computeSmilePayload(smileArgs)),
-        },
-        {
-            contractName: "smile_token",
-            data: window.btoa(computeErc20Payload(erc20Args)),
-        },
-    ]);
+    webAuthnValues: ECDSAPayloadArgs,
+    smileArgs: CairoSmilePayloadArgs,
+    smileTokenArgs: CairoSmileTokenPayloadArgs,
+): Promise<[PayloadTx, DeliverTxResponse]> {
+    let payloadTx = {
+        identity: identity,
+        payloads: [
+            {
+                contractName: "ecdsa_secp256r1",
+                data: window.btoa(computeWebAuthnPayload(webAuthnValues)),
+            },
+            {
+                contractName: "smile",
+                data: window.btoa(computeSmilePayload(smileArgs)),
+            },
+            {
+                contractName: "smile_token",
+                data: window.btoa(computeSmileTokenPayload(smileTokenArgs)),
+            },
+        ]
+    }
+    return [payloadTx, await broadcastPayloadTx(payloadTx.identity, payloadTx.payloads)];
 }
 
 export async function ensureContractsRegistered() {
@@ -59,7 +66,7 @@ export async function ensureContractsRegistered() {
     exists = await checkContractExists(network, "ecdsa_secp256r1");
     if (!exists) {
         const b64vKey =
-            "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";
+            "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";
         const vKey = base64ToUint8Array(b64vKey);
         await registerContract(
             "noir",

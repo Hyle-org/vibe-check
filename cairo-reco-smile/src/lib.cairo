@@ -9,14 +9,17 @@ fn main(input: Array<felt252>) -> Array<felt252> {
 
     let mut input = input.span();
 
-    let (identity, image): (ByteArray, Array<felt252>) = Serde::deserialize(ref input).unwrap();
+    let (mut identity, index, payloads): (ByteArray, u32, Array<Array<felt252>>) = Serde::deserialize(
+        ref input
+    ).unwrap();
+
+    let smile_payload = payloads.at(index);
+
     let mut conv: Array<i32> = ArrayTrait::new();
     let mut n = 0;
     
-    let payload = image.clone();
-
-    while n < image.len() {
-        let val:i32 =(*image[n]).try_into().unwrap();
+    while n < smile_payload.len() {
+        let val:i32 =(*smile_payload[n]).try_into().unwrap();
         conv.append(val);
         n = n +1;
     };
@@ -297,7 +300,7 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     let success = result >= -146633_i32;
 
     processHyleOutput(
-        1, initial_state.clone(), initial_state.clone(), identity, 0, payload, success, program_output,
+        1, initial_state.clone(), initial_state.clone(), identity, 0, index, payloads, success, program_output,
     )
 }
 
@@ -310,7 +313,8 @@ struct HyleOutput {
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payload_hash: felt252,
+    index: u32,
+    payloads: Array<Array<felt252>>,
     success: bool,
     program_outputs: Array<felt252>
 }
@@ -338,14 +342,11 @@ fn processHyleOutput(
     next_state: felt252,
     identity: ByteArray,
     tx_hash: felt252,
-    payload: Array<felt252>,
+    index: u32,
+    payloads: Array<Array<felt252>>,
     success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
-    // Hashing payload
-    let payload_span = payload.span();
-    let payload_hash = compute_hash_on_elements(payload_span);
-
     // HyleOutput
     let hyle_output = HyleOutput {
         version: version,
@@ -353,7 +354,8 @@ fn processHyleOutput(
         next_state: next_state,
         identity: identity,
         tx_hash: tx_hash,
-        payload_hash: payload_hash,
+        index: index,
+        payloads: payloads,
         success: success,
         program_outputs: program_output,
     };

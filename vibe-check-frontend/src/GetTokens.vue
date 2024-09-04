@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import * as faceApi from "face-api.js";
-import * as ort from 'onnxruntime-web';
+import * as ort from "onnxruntime-web";
 import { computed, nextTick, onMounted, ref, watchEffect } from "vue";
-import { needWebAuthnCredentials, registerWebAuthnIfNeeded, signChallengeWithWebAuthn, getWebAuthnIdentity } from "./webauthn";
+import {
+    needWebAuthnCredentials,
+    registerWebAuthnIfNeeded,
+    signChallengeWithWebAuthn,
+    getWebAuthnIdentity,
+} from "./webauthn";
 import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
-import { getBalances } from "@/smart_contracts/SmileTokenIndexer";
 
-import { setupCosmos, checkTxStatus } from "hyle-js";
+import { setupCosmos, checkTxStatus, MsgPublishPayloads } from "hyle-js";
 
 import extLink from "./assets/external-link-svgrepo-com.vue";
 import { getNetworkRpcUrl } from "./network";
@@ -14,7 +18,12 @@ import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
-import type { CairoArgs, CairoSmileArgs, ECDSAArgs } from "@/smart_contracts/SmartContract";
+import type {
+    CairoSmileTokenPayloadArgs,
+    ECDSAPayloadArgs,
+    CairoSmilePayloadArgs,
+    PayloadTx,
+} from "@/smart_contracts/SmartContract";
 import { DeliverTxResponse } from "@cosmjs/stargate";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
 
@@ -41,17 +50,17 @@ const error = ref<string | null>(null);
 const identityRef = ref("");
 const txHash = ref<string | null>(null);
 
-const {
-    ecdsaPromiseDone,
-    smilePromiseDone,
-    erc20PromiseDone,
-    proveAndSendProofsTx,
-} = useProving(status as any, error, txHash);
+const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, computePayloadsAndProve } = useProving(
+    status as any,
+    error,
+    txHash,
+);
 
-let erc20Args: CairoArgs;
-let smileArgs: CairoSmileArgs;
-let webAuthnValues: ECDSAArgs;
-let payloadResp: DeliverTxResponse;
+let webAuthnPayloadArgs: ECDSAPayloadArgs;
+let smilePayloadArgs: CairoSmilePayloadArgs;
+let smileTokenPayloadArgs: CairoSmileTokenPayloadArgs;
+let payloadTxResp: DeliverTxResponse;
+let payloadTx: PayloadTx;
 
 // Match screen to status
 watchEffect(() => {
@@ -84,8 +93,7 @@ watchEffect(() => {
         tx_success: "proving",
         tx_failure: "proving",
     } as any;
-    if (statusToScreen[status.value] !== screen.value)
-        screen.value = statusToScreen[status.value];
+    if (statusToScreen[status.value] !== screen.value) screen.value = statusToScreen[status.value];
 });
 
 onMounted(async () => {
@@ -94,7 +102,7 @@ onMounted(async () => {
     await setupCosmos(getNetworkRpcUrl());
     await ensureContractsRegistered();
     identityRef.value = getWebAuthnIdentity();
-    onnxSessionRef.value = await ort.InferenceSession.create('./models/smile.onnx');
+    onnxSessionRef.value = await ort.InferenceSession.create("./models/smile.onnx");
 });
 
 const doWebAuthn = async () => {
@@ -117,7 +125,7 @@ const doWebAuthn = async () => {
     }
 
     await activateCamera();
-}
+};
 
 const activateCamera = async () => {
     try {
@@ -125,17 +133,20 @@ const activateCamera = async () => {
         await nextTick();
         videoFeed.value!.srcObject = stream;
         videoFeed.value!.play();
-        nextTick(() => status.value = "camera_playing");
+        nextTick(() => (status.value = "camera_playing"));
         detectionTimer.value = setInterval(async () => {
-            const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight }
-            faceApi.matchDimensions(canvasOutput.value!, displaySize)
+            const displaySize = { width: videoFeed.value!.clientWidth, height: videoFeed.value!.clientHeight };
+            faceApi.matchDimensions(canvasOutput.value!, displaySize);
 
             // Detect faces
-            lastDetections.value = await faceApi.detectAllFaces(videoFeed.value!, new faceApi.TinyFaceDetectorOptions())
+            lastDetections.value = await faceApi.detectAllFaces(
+                videoFeed.value!,
+                new faceApi.TinyFaceDetectorOptions(),
+            );
 
             // We shall only process detection if at least one face has been detected
             if (lastDetections.value.length > 0) {
-                let resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
+                let resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize);
 
                 let canvas = canvasOutput.value!;
                 let context = canvas.getContext("2d")!;
@@ -157,21 +168,27 @@ const activateCamera = async () => {
                 let contextML = canvasML.getContext("2d")!;
                 contextML.drawImage(videoFeed.value!, 0, 0, canvas.width, canvas.height);
                 let image = await createImageBitmap(canvasML);
-                let score = await getSmileProbability(image, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
+                let score = await getSmileProbability(
+                    image,
+                    resizedDetections[0].box.x,
+                    resizedDetections[0].box.y,
+                    resizedDetections[0].box.width,
+                    resizedDetections[0].box.height,
+                );
 
                 // Apply score to canvas
                 context.scale(-1, 1);
                 context.fillStyle = "blue";
                 context.font = "bold 16px Arial";
-                context.fillText(score, - canvas.width * 0.1, canvas.height * 0.1);
+                context.fillText(score, -canvas.width * 0.1, canvas.height * 0.1);
             }
         }, 1000);
     } catch (e) {
         console.error(e);
         error.value = `${e}`;
         status.value = "failed_camera";
-    };
-}
+    }
+};
 
 const takeScreenshot = async () => {
     clearInterval(detectionTimer.value as number);
@@ -184,19 +201,39 @@ const takeScreenshot = async () => {
         ctx.drawImage(videoFeed.value!, 0, 0, canvas.width, canvas.height);
         screenshotData.value = await createImageBitmap(canvas);
 
-        const displaySize = { width: canvas.width, height: canvas.height }
-        const resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize)
+        const displaySize = { width: canvas.width, height: canvas.height };
+        const resizedDetections = faceApi.resizeResults(lastDetections.value, displaySize);
         faceApi.draw.drawDetections(canvas, resizedDetections);
-        (videoFeed.value!.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+        (videoFeed.value!.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
         status.value = "processing";
 
-        await zoomInOnBox(canvas, screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
-        const smilingProbability = await getSmileProbability(screenshotData.value!, resizedDetections[0].box.x, resizedDetections[0].box.y, resizedDetections[0].box.width, resizedDetections[0].box.height);
+        await zoomInOnBox(
+            canvas,
+            screenshotData.value!,
+            resizedDetections[0].box.x,
+            resizedDetections[0].box.y,
+            resizedDetections[0].box.width,
+            resizedDetections[0].box.height,
+        );
+        const smilingProbability = await getSmileProbability(
+            screenshotData.value!,
+            resizedDetections[0].box.x,
+            resizedDetections[0].box.y,
+            resizedDetections[0].box.width,
+            resizedDetections[0].box.height,
+        );
         checkVibe(smilingProbability);
     }
 };
 
-const zoomInOnBox = async (canvas: HTMLCanvasElement, img: ImageBitmap, x: number, y: number, width: number, height: number) => {
+const zoomInOnBox = async (
+    canvas: HTMLCanvasElement,
+    img: ImageBitmap,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+) => {
     await new Promise((resolve) => {
         const steps = 5;
         let currentStep = 0;
@@ -219,7 +256,7 @@ const zoomInOnBox = async (canvas: HTMLCanvasElement, img: ImageBitmap, x: numbe
             currentStep++;
         }, 400);
     });
-}
+};
 
 const imageToGrayScale = (image: ImageData): Float32Array => {
     const data = image.data;
@@ -239,10 +276,6 @@ const imageToGrayScale = (image: ImageData): Float32Array => {
     }
 
     return grayscaleArray;
-}
-
-const sigmoid = (x: number) => {
-    return Math.exp(x) / (Math.exp(x) + 1);
 };
 
 const checkVibe = async (isSmilingProbability: number) => {
@@ -257,7 +290,8 @@ const checkVibe = async (isSmilingProbability: number) => {
         vibeCheckStatus.value = "success_vibe";
         status.value = "success_vibe";
     }
-}
+};
+
 const getSmileProbability = async (image: ImageBitmap, x: number, y: number, width: number, height: number) => {
     const small = document.createElement("canvas");
     const smallCtx = small.getContext("2d")!;
@@ -278,12 +312,12 @@ const getSmileProbability = async (image: ImageBitmap, x: number, y: number, wid
     // On webkit we skip actually running the smile, as it fails to finish for some reason.
     // TODO: at the moment I do this everywhere because running Cairo is too slow and we don't actually care all that much.
     // We'd be better off running the ONNX directly in wasm via OnnxRuntime or something like that.
-    const tensorGrayScale = new ort.Tensor('float32', grayScale, [1, 48*48]);
+    const tensorGrayScale = new ort.Tensor("float32", grayScale, [1, 48 * 48]);
     const modelResponse = await onnxSessionRef.value?.run({ input: tensorGrayScale });
-    let smileProbability = modelResponse.probabilities.cpuData[1];
+    let smileProbability = modelResponse?.probabilities.cpuData[1];
 
-    return smileProbability
-}
+    return smileProbability;
+};
 
 const retryScreenshot = () => {
     screenshotData.value = null;
@@ -292,7 +326,7 @@ const retryScreenshot = () => {
 
     status.value = "authenticated";
     activateCamera();
-}
+};
 
 const signAndSendPayloadTx = async () => {
     status.value = "payload";
@@ -306,7 +340,9 @@ const signAndSendPayloadTx = async () => {
 
     try {
         await new Promise((resolve, reject) => {
-            const ok = window.confirm("Because of WASM limitations, Vibe Check isn't able to generate proofs client-side for Giza. Your image will be sent to Hylé. If you're not OK with that, ask a friend to smile instead !");
+            const ok = window.confirm(
+                "Because of WASM limitations, Vibe Check isn't able to generate proofs client-side for Giza. Your image will be sent to Hylé. If you're not OK with that, ask a friend to smile instead !",
+            );
             if (ok) {
                 resolve(null);
             } else {
@@ -314,39 +350,32 @@ const signAndSendPayloadTx = async () => {
             }
         });
 
-        const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0));
-        webAuthnValues = {
-            ...await signChallengeWithWebAuthn(challenge),
-            identity: identity,
-        }
+        const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", (c) => c.charCodeAt(0));
+        webAuthnPayloadArgs = await signChallengeWithWebAuthn(challenge);
 
         // Start locally proving that we are who we claim to be by signing the transaction hash
         // Send the proof of smile to Giza or something
-        const cairoGrayScale = grayScale.map(pixel => Math.round(pixel * 100000))
+        const cairoGrayScale = grayScale.map((pixel) => Math.round(pixel * 100000));
 
-        smileArgs = {
-            identity: identity,
-            image: [...cairoGrayScale]
+        smilePayloadArgs = {
+            image: [...cairoGrayScale],
         };
 
         // Locally or backend prove an erc20 transfer
-        erc20Args = {
-            balances: getBalances(),
+        smileTokenPayloadArgs = {
             from: "faucet",
             to: identity,
             amount: 100,
         };
 
-
-        // Send the transaction
-        payloadResp = await broadcastVibeCheckPayload(
+        // Create and send the transaction
+        [payloadTx, payloadTxResp] = await broadcastVibeCheckPayload(
             identity,
-            webAuthnValues,
-            smileArgs,
-            erc20Args,
+            webAuthnPayloadArgs,
+            smilePayloadArgs,
+            smileTokenPayloadArgs,
         );
-
-        console.log("PayloadTx: ", payloadResp.transactionHash)
+        console.log("PayloadTx: ", payloadTxResp.transactionHash);
 
         // Switch to waiter view
         status.value = "checking_payload_tx";
@@ -355,10 +384,10 @@ const signAndSendPayloadTx = async () => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Check the status of the TX
-        const txStatus = await checkTxStatus(payloadResp.transactionHash);
+        const txStatus = await checkTxStatus(payloadTxResp.transactionHash);
         if (txStatus.status === "success") {
             status.value = "payload_tx_success";
-            txHash.value = payloadResp.transactionHash;
+            txHash.value = payloadTxResp.transactionHash;
         } else {
             status.value = "payload_tx_failure";
             error.value = txStatus.error || "Unknown error";
@@ -368,11 +397,16 @@ const signAndSendPayloadTx = async () => {
         error.value = `${e}`;
         status.value = "failed_at_payload";
     }
-}
+};
 
 const proveRemotely = async () => {
-    await proveAndSendProofsTx(txHash.value!, webAuthnValues, smileArgs, erc20Args);
-}
+    // payloadTx has been created for cosmos compatibility. Needs formatting to be casted as MsgPublishPayload
+    let parsedTransaction: MsgPublishPayloads = { identity: payloadTx.identity, payloads: [] };
+    parsedTransaction.payloads = payloadTx.payloads.map((dict) => {
+        return { contractName: dict.contractName, data: new TextEncoder().encode(window.atob(dict.data)) };
+    });
+    await computePayloadsAndProve(parsedTransaction, txHash.value!);
+};
 
 const vTriggerScroll = {
     mounted(el: HTMLDivElement) {
@@ -380,8 +414,8 @@ const vTriggerScroll = {
         const targetHeight = el.clientHeight;
         document.body.style.setProperty("--max-height", `${maxHeight}px`);
         document.body.style.setProperty("--target-height", `${targetHeight}px`);
-    }
-}
+    },
+};
 </script>
 
 <template>
@@ -391,18 +425,26 @@ const vTriggerScroll = {
         <h1 class="text-center my-4">Vibe Check</h1>
         <hr />
         <div class="text-center my-4 explainer">
-            <p class="my-4">Vibe Check is a zkML & WebAuthn Powered zkApp asserting a user has smiled and awarding test
-                tokens on Hylé!</p>
-            <p class="my-4 smaller">This is a test project! Don't take it too seriously. Code can be found on our <a
-                    href="https://github.com/Hyle-org/vibe-check">github</a></p>
+            <p class="my-4">
+                Vibe Check is a zkML & WebAuthn Powered zkApp asserting a user has smiled and awarding test tokens on
+                Hylé!
+            </p>
+            <p class="my-4 smaller">
+                This is a test project! Don't take it too seriously. Code can be found on our
+                <a href="https://github.com/Hyle-org/vibe-check">github</a>
+            </p>
         </div>
         <template v-if="screen == 'start'">
             <div class="flex flex-col justify-center h-[400px] max-h-[50vh] max-w-[50rem] m-auto img-background p-10">
-                <div v-if="status === 'pre-authenticating' || status === 'authenticating'"
-                    class="p-10 bg-black bg-opacity-70 rounded-xl">
+                <div
+                    v-if="status === 'pre-authenticating' || status === 'authenticating'"
+                    class="p-10 bg-black bg-opacity-70 rounded-xl"
+                >
                     <p class="text-center font-semibold font-anton mb-2">Authenticating via WebAuthn</p>
-                    <p class="text-center">You will be asked to create a secure account<br />
-                        using the secure enclave contained within your device.</p>
+                    <p class="text-center">
+                        You will be asked to create a secure account<br />
+                        using the secure enclave contained within your device.
+                    </p>
                     <i class="!mt-4 !m-auto !block spinner"></i>
                 </div>
                 <div v-else-if="status === 'failed_authentication'" class="p-10 bg-black bg-opacity-70 rounded-xl">
@@ -417,15 +459,19 @@ const vTriggerScroll = {
                 <a href="/proving" class="border-0"><button v-if="status === 'start'">Prove transactions</button></a>
             </div>
             <div class="text-center my-4 explainer">
-                <p class="smaller">Proofs are generated using <a href=https://noir-lang.org>Noir</a>, <a
-                        href="https://www.cairo-lang.org">Cairo</a> and <a href="https://www.gizatech.xyz">Giza</a>.</p>
+                <p class="smaller">
+                    Proofs are generated using <a href="https://noir-lang.org">Noir</a>,
+                    <a href="https://www.cairo-lang.org">Cairo</a> and <a href="https://www.gizatech.xyz">Giza</a>.
+                </p>
             </div>
         </template>
         <template v-else>
             <!-- This case covers all of them because of the screenshotOutput canvas ref, which needs to have long enough lifetime -->
             <div v-if="screen === 'camera'">
-                <div v-show="status === 'authenticated' || status === 'failed_camera'"
-                    class="flex flex-col justify-center h-[400px] max-h-[50vh] max-w-[50rem] m-auto img-background p-10">
+                <div
+                    v-show="status === 'authenticated' || status === 'failed_camera'"
+                    class="flex flex-col justify-center h-[400px] max-h-[50vh] max-w-[50rem] m-auto img-background p-10"
+                >
                     <div v-if="status === 'authenticated'">
                         <i class="!mt-4 !m-auto !block spinner"></i>
                     </div>
@@ -441,14 +487,18 @@ const vTriggerScroll = {
                     </div>
                 </div>
                 <div class="flex justify-center my-8">
-                    <button @click="takeScreenshot" :disabled="status !== 'camera_playing' || !hasDetection">Get
-                        Tokens</button>
+                    <button @click="takeScreenshot" :disabled="status !== 'camera_playing' || !hasDetection">
+                        Get Tokens
+                    </button>
                 </div>
             </div>
-            <div v-show="screen !== 'camera'"> <!-- screenshotOutput is also why I'm using show and not if -->
+            <div v-show="screen !== 'camera'">
+                <!-- screenshotOutput is also why I'm using show and not if -->
                 <div class="relative flex justify-center">
-                    <canvas :class="`mirror rounded overflow-hidden ${vibeCheckStatus}`"
-                        ref="screenshotOutput"></canvas>
+                    <canvas
+                        :class="`mirror rounded overflow-hidden ${vibeCheckStatus}`"
+                        ref="screenshotOutput"
+                    ></canvas>
                     <div class="absolute top-0 w-full h-full flex justify-center items-center">
                         <p v-if="status === 'checking_vibe'" class="text-white font-semibold">
                             ...Checking your vibe...
@@ -459,102 +509,139 @@ const vTriggerScroll = {
                         <p v-else-if="status === 'success_vibe'" class="text-white font-semibold">
                             Vibe check passed. You are vibing.
                         </p>
-                        <div v-else-if="screen === 'payload' && status !== 'failed_at_payload'"
-                            class="text-white p-8 bg-black bg-opacity-50 rounded-xl overflow-hidden">
+                        <div
+                            v-else-if="screen === 'payload' && status !== 'failed_at_payload'"
+                            class="text-white p-8 bg-black bg-opacity-50 rounded-xl overflow-hidden"
+                        >
                             <div :class="`relative scrollOnSuccess ${status}`">
                                 <div v-if="status === 'payload'" class="flex flex-col justify-center items-center my-8">
                                     <i class="spinner"></i>
                                     <p class="italic">...Sending transaction...</p>
                                 </div>
-                                <div v-if="status === 'checking_payload_tx'"
-                                    class="flex flex-col justify-center items-center my-8">
+                                <div
+                                    v-if="status === 'checking_payload_tx'"
+                                    class="flex flex-col justify-center items-center my-8"
+                                >
                                     <i class="spinner"></i>
                                     <p class="italic">...TX sent, checking status...</p>
                                 </div>
-                                <div v-if="status === 'payload_tx_success'"
-                                    class="flex flex-col justify-center items-center py-16" v-trigger-scroll>
+                                <div
+                                    v-if="status === 'payload_tx_success'"
+                                    class="flex flex-col justify-center items-center py-16"
+                                    v-trigger-scroll
+                                >
                                     <p class="text-center font-semibold font-anton uppercase mb-2">Transaction sent</p>
-                                    <p class="text-center text-sm font-mono">Once your TX is proven, you will earn 100
-                                        tokens on Hylé devnet.</p>
-                                    <p class="text-center text-sm font-mono my-4">Check it out on
+                                    <p class="text-center text-sm font-mono">
+                                        Once your TX is proven, you will earn 100 tokens on Hylé devnet.
+                                    </p>
+                                    <p class="text-center text-sm font-mono my-4">
+                                        Check it out on
                                         <a :href="HyleouApi.transactionDetails(txHash!)">
-                                            <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
-                                        </a><br>or tweet about it
-                                        !
+                                            <extLink class="h-4 w-auto inline-block pr-1" />Hyléou </a
+                                        ><br />or tweet about it !
                                     </p>
-                                    <p class="text-center text-sm font-mono my-4">Anyone can generate proofs of your
-                                        transaction, but you can also do it yourself:
+                                    <p class="text-center text-sm font-mono my-4">
+                                        Anyone can generate proofs of your transaction, but you can also do it yourself:
                                     </p>
-                                    <button class="my-2" @click="proveRemotely">Prove remotely (no privacy)
-                                    </button>
+                                    <button class="my-2" @click="proveRemotely">Prove remotely (no privacy)</button>
                                     <button disabled>Prove locally (unavailable for now)</button>
-                                    <a href="/proving" class="border-0"><button class="my-2">Go to proving
-                                            page</button></a>
+                                    <a href="/proving" class="border-0"
+                                        ><button class="my-2">Go to proving page</button></a
+                                    >
                                 </div>
-                                <div v-if="status === 'payload_tx_failure'"
-                                    class="flex flex-col justify-center items-center my-8">
+                                <div
+                                    v-if="status === 'payload_tx_failure'"
+                                    class="flex flex-col justify-center items-center my-8"
+                                >
                                     <p class="text-center font-semibold font-anton uppercase mb-2">TX failed</p>
                                     <p class="text-center text-sm font-mono">{{ error }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div v-else-if="status === 'failed_at_payload'"
-                            class="text-white p-10 bg-black bg-opacity-50 rounded-xl flex flex-col gap-2">
+                        <div
+                            v-else-if="status === 'failed_at_payload'"
+                            class="text-white p-10 bg-black bg-opacity-50 rounded-xl flex flex-col gap-2"
+                        >
                             <p class="text-center font-semibold font-anton uppercase mb-2">An error occured</p>
                             <p class="text-center text-sm font-mono">{{ error }}</p>
                         </div>
-                        <div v-else-if="screen === 'proving' && status !== 'failed_at_proving'"
-                            class="text-white p-8 bg-black bg-opacity-50 rounded-xl overflow-hidden">
+                        <div
+                            v-else-if="screen === 'proving' && status !== 'failed_at_proving'"
+                            class="text-white p-8 bg-black bg-opacity-50 rounded-xl overflow-hidden"
+                        >
                             <div :class="`relative scrollOnSuccess ${status}`">
                                 <div class="flex flex-col gap-2">
-                                    <p class="flex items-center">Generating ECDSA signature proof:
+                                    <p class="flex items-center">
+                                        Generating ECDSA signature proof:
                                         <i v-if="!ecdsaPromiseDone" class="spinner"></i>
-                                        <span v-else>✅</span><br>
-                                        <span class="text-sm mt-1 text-opacity-80 italic">(This is actually done
-                                            client-side so it takes a while)</span>
+                                        <span v-else>✅</span><br />
                                     </p>
-                                    <p class="flex items-center">Generating proof of smile: <i v-if="!smilePromiseDone"
-                                            class="spinner"></i><span v-else>✅</span></p>
-                                    <p class="flex items-center">Generating ERC20 claim proof: <i
-                                            v-if="!erc20PromiseDone" class="spinner"></i><span v-else>✅</span></p>
-                                    <p class="flex items-center gap-1">Sending Proofs: <i v-if="status === 'proving'"
-                                            class="spinner"></i><span v-else>✅</span></p>
-                                    <div v-if="status === 'checking_tx'"
-                                        class="flex flex-col justify-center items-center my-8">
+                                    <p class="flex items-center">
+                                        Generating proof of smile: <i v-if="!smilePromiseDone" class="spinner"></i
+                                        ><span v-else>✅</span>
+                                    </p>
+                                    <p class="flex items-center">
+                                        Generating ERC20 claim proof:
+                                        <i v-if="!smileTokenPromiseDone" class="spinner"></i><span v-else>✅</span>
+                                    </p>
+                                    <p class="flex items-center gap-1">
+                                        Sending Proofs: <i v-if="status === 'proving'" class="spinner"></i
+                                        ><span v-else>✅</span>
+                                    </p>
+                                    <div
+                                        v-if="status === 'checking_tx'"
+                                        class="flex flex-col justify-center items-center my-8"
+                                    >
                                         <i class="spinner"></i>
                                         <p class="italic">...TX sent, checking status...</p>
                                     </div>
                                 </div>
-                                <div v-if="status === 'tx_success'"
-                                    class="flex flex-col justify-center items-center py-16" v-trigger-scroll>
+                                <div
+                                    v-if="status === 'tx_success'"
+                                    class="flex flex-col justify-center items-center py-16"
+                                    v-trigger-scroll
+                                >
                                     <p class="text-center font-semibold font-anton uppercase mb-2">TX successful</p>
-                                    <p class="text-center text-sm font-mono">You've earned 100 devnet Hylé. Good vibes!
+                                    <p class="text-center text-sm font-mono">
+                                        You've earned 100 devnet Hylé. Good vibes!
                                     </p>
-                                    <p class="text-center text-sm font-mono my-4">Check it out on
+                                    <p class="text-center text-sm font-mono my-4">
+                                        Check it out on
                                         <a :href="HyleouApi.transactionDetails(txHash!)">
-                                            <extLink class="h-4 w-auto inline-block pr-1" />Hyléou
-                                        </a><br>or tweet about it
-                                        !
+                                            <extLink class="h-4 w-auto inline-block pr-1" />Hyléou </a
+                                        ><br />or tweet about it !
                                     </p>
                                 </div>
-                                <div v-if="status === 'tx_failure'"
-                                    class="flex flex-col justify-center items-center my-8">
+                                <div
+                                    v-if="status === 'tx_failure'"
+                                    class="flex flex-col justify-center items-center my-8"
+                                >
                                     <p class="text-center font-semibold font-anton uppercase mb-2">TX failed</p>
                                     <p class="text-center text-sm font-mono">{{ error }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div v-else-if="status === 'failed_at_proving'"
-                            class="text-white p-10 bg-black bg-opacity-50 rounded-xl flex flex-col gap-2">
+                        <div
+                            v-else-if="status === 'failed_at_proving'"
+                            class="text-white p-10 bg-black bg-opacity-50 rounded-xl flex flex-col gap-2"
+                        >
                             <p class="text-center font-semibold font-anton uppercase mb-2">An error occured</p>
                             <p class="text-center text-sm font-mono">{{ error }}</p>
                         </div>
                     </div>
                 </div>
                 <div class="flex justify-center my-8 gap-4">
-                    <button @click="signAndSendPayloadTx"
-                        :disabled="status !== 'failed_vibe' && status !== 'success_vibe' && status !== 'failed_at_proving' && status !== 'failed_at_payload'">Send
-                        TX</button>
+                    <button
+                        @click="signAndSendPayloadTx"
+                        :disabled="
+                            status !== 'failed_vibe' &&
+                            status !== 'success_vibe' &&
+                            status !== 'failed_at_proving' &&
+                            status !== 'failed_at_payload'
+                        "
+                    >
+                        Send TX
+                    </button>
                     <button @click="retryScreenshot" v-if="status === 'failed_vibe'">Retry</button>
                 </div>
             </div>
@@ -562,20 +649,18 @@ const vTriggerScroll = {
 
         <LeaderBoard :identity="identityRef" />
     </div>
-
 </template>
-
 
 <style scoped>
 .explainer {
     margin: 2.5em;
 }
 
-.explainer>p {
+.explainer > p {
     font-family: Anton, sans-serif;
 }
 
-.explainer>p.smaller {
+.explainer > p.smaller {
     font-size: 1em;
 }
 
@@ -596,7 +681,8 @@ canvas.failed_vibe {
     @apply animate-[fail_3s_forwards];
 }
 
-canvas.success_vibe {}
+canvas.success_vibe {
+}
 
 @keyframes fail {
     0% {

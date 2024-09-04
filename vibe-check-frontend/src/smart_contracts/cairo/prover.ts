@@ -1,4 +1,4 @@
-import { CairoArgs, CairoSmileArgs } from "@/smart_contracts/SmartContract";
+import { CairoSmileArgs, CairoSmileTokenArgs } from "@/smart_contracts/SmartContract";
 
 function viaWorker(
     // I can't create the worker here or it confuses rollup and we end up with the wrong path.
@@ -15,7 +15,7 @@ function viaWorker(
     });
 }
 
-export const proveERC20Transfer = (args: CairoArgs): Promise<Uint8Array> => {
+export const proveSmileTokenTransfer = (args: CairoSmileTokenArgs): Promise<Uint8Array> => {
     const worker = new Worker(new URL("./CairoRunner.ts", import.meta.url), {
         type: "module",
     });
@@ -24,8 +24,8 @@ export const proveERC20Transfer = (args: CairoArgs): Promise<Uint8Array> => {
             resolve(e.data.proof);
             worker.terminate();
         };
-        worker.postMessage(["run-erc20", args]);
-        worker.postMessage(["prove-erc20"]);
+        worker.postMessage(["run-smile-token", args]);
+        worker.postMessage(["prove-smile-token"]);
     });
 };
 
