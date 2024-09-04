@@ -77,21 +77,18 @@ const {
                     </template>
                 </div>
                 <div class="flex-1 px-4 py-1">
-                    <img
-                        v-if="tx.type"
-                        class="min-w-12"
-                        :src="createMlImage(parseMLPayload(getPayload(parsedTransactions[tx.hash], 'smile')))"
-                    />
+                    <img v-if="tx.type" class="min-w-12"
+                        :src="createMlImage(parseMLPayload(getPayload(parsedTransactions[tx.hash], 'smile')))" />
                     <div class="ml-4 inline-flex flex-col flex-1">
                         <p>
                             Transaction hash: <span class="font-mono text-sm">0x{{ tx.hash }}</span>
                         </p>
                         <p>
                             {{
-                                formatSmileTokenPayload(
-                                    parseSmileTokenPayload(getPayload(parsedTransactions[tx.hash], "smile_token")),
-                                )
-                            }}
+                formatSmileTokenPayload(
+                    parseSmileTokenPayload(getPayload(parsedTransactions[tx.hash], "smile_token")),
+                )
+            }}
                         </p>
                     </div>
                 </div>
@@ -113,8 +110,8 @@ const {
                     Generating proof of smile: <i v-if="!smilePromiseDone" class="spinner"></i><span v-else>✅</span>
                 </p>
                 <p class="flex items-center">
-                    Generating ERC20 claim proof: <i v-if="!smileTokenPromiseDone" class="spinner"></i
-                    ><span v-else>✅</span>
+                    Generating ERC20 claim proof: <i v-if="!smileTokenPromiseDone" class="spinner"></i><span
+                        v-else>✅</span>
                 </p>
                 <p class="flex items-center gap-1">
                     Sending Proofs: <i v-if="status === 'proving'" class="spinner"></i><span v-else>✅</span>
@@ -123,11 +120,8 @@ const {
                     <i class="spinner"></i>
                     <p class="italic">...TX sent, checking status...</p>
                 </div>
-                <button
-                    v-if="status === 'tx_success'"
-                    @click="status = 'idle'"
-                    class="bg-secondary text-primary p-2 rounded-xl"
-                >
+                <button v-if="status === 'tx_success'" @click="status = 'idle'"
+                    class="bg-secondary text-primary p-2 rounded-xl">
                     Close
                 </button>
             </template>
@@ -144,7 +138,7 @@ const {
     @apply bg-secondary bg-opacity-20 flex content-stretch;
 }
 
-.tx > div {
+.tx>div {
     @apply border-secondary border-opacity-20 inline-flex items-center justify-center;
 }
 

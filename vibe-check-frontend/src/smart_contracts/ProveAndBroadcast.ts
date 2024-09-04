@@ -1,10 +1,18 @@
 import { ref } from "vue";
-import { broadcastProofTx, checkTxesStatus, MsgPublishPayloads, uint8ArrayToBase64 } from "hyle-js";
+import {
+    broadcastProofTx,
+    checkTxesStatus,
+    getNetworkRpcUrl,
+    MsgPublishPayloads,
+    setupCosmos,
+    uint8ArrayToBase64,
+} from "hyle-js";
 
 import { proveSmile, proveSmileTokenTransfer } from "@/smart_contracts/cairo/prover";
 import { proveECDSA } from "@/smart_contracts/noir/prover";
 import { CairoSmileArgs, CairoSmileTokenArgs, computePayload, ECDSAArgs } from "./SmartContract";
 import { getBalances } from "./SmileTokenIndexer";
+import { network } from "@/network";
 
 export function useProving(
     status = ref("idle" as "idle" | "proving" | "checking_tx" | "tx_success" | "tx_failure" | "failed_at_proving"),
@@ -15,7 +23,7 @@ export function useProving(
     const smilePromiseDone = ref(false);
     const smileTokenPromiseDone = ref(false);
 
-    function getPayload(parsedTransaction: MsgPublishPayloads | undefined, contract: string){
+    function getPayload(parsedTransaction: MsgPublishPayloads | undefined, contract: string) {
         if (!parsedTransaction) return undefined;
         return parsedTransaction.payloads.find((x) => x.contractName === contract)?.data;
     }
@@ -45,9 +53,19 @@ export function useProving(
 
             // Send the proofs transactions
             // The order we expect them is the order they're most likely going to finish in.
-            const smileTokenResp = await broadcastProofTx(txHash, 2, "smile_token", uint8ArrayToBase64(await smileTokenPromise));
+            const smileTokenResp = await broadcastProofTx(
+                txHash,
+                2,
+                "smile_token",
+                uint8ArrayToBase64(await smileTokenPromise),
+            );
             const smileResp = await broadcastProofTx(txHash, 1, "smile", uint8ArrayToBase64(await smilePromise));
-            const ecdsaResp = await broadcastProofTx(txHash, 0, "ecdsa_secp256r1", uint8ArrayToBase64(await ecdsaPromise));
+            const ecdsaResp = await broadcastProofTx(
+                txHash,
+                0,
+                "ecdsa_secp256r1",
+                uint8ArrayToBase64(await ecdsaPromise),
+            );
             console.log("ecdsaProofTx: ", ecdsaResp.transactionHash);
             console.log("smileProofTx: ", smileResp.transactionHash);
             console.log("smileTokenProofTx: ", smileTokenResp.transactionHash);
@@ -75,15 +93,16 @@ export function useProving(
     };
 
     const computePayloadsAndProve = async (parsedTransaction: MsgPublishPayloads | undefined, txHash: string) => {
+        const cosmos = setupCosmos(getNetworkRpcUrl(network)!);
         // getting each payloads to process the main payload
         let payloadWebAuthn = getPayload(parsedTransaction, "ecdsa_secp256r1");
         let payloadSmile = getPayload(parsedTransaction, "smile");
         let payloadSmileToken = getPayload(parsedTransaction, "smile_token");
         let gatheredPayloads = computePayload(payloadWebAuthn, payloadSmile, payloadSmileToken);
-    
+
         // getting values needed to prove each contract
         let identity = getIdentity(parsedTransaction);
-    
+
         // for webauthn
         const ecdsaArgs: ECDSAArgs = {
             identity: identity,
@@ -99,9 +118,10 @@ export function useProving(
             balances: getBalances(),
             payloads: gatheredPayloads,
         };
-    
+
+        await cosmos;
         await proveAndSendProofsTx(txHash, ecdsaArgs, smileArgs, smileTokenArgs);
-    }
+    };
 
     return {
         ecdsaPromiseDone,
@@ -111,6 +131,6 @@ export function useProving(
         error,
         sentTxHash,
         computePayloadsAndProve,
-        getPayload
+        getPayload,
     };
 }
