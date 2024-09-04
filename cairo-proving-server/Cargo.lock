@@ -459,7 +459,7 @@ dependencies = [
 [[package]]
 name = "cairo-verifier"
 version = "0.1.0"
-source = "git+https://github.com/Hyle-org/hyle-cosmos?branch=feat/simplify-payload-hashing#573542c273985cef2e0a9a61e3dea0188c5f9735"
+source = "git+https://github.com/Hyle-org/hyle-cosmos?branch=feat/simplify-payload-hashing#56eac73430cce856c0c8504df256bf129b3769ad"
 dependencies = [
  "bincode 2.0.0-rc.2",
  "cairo-platinum-prover",
@@ -959,7 +959,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "hyle_contract"
 version = "0.1.0"
-source = "git+https://github.com/Hyle-org/hyle-cosmos?branch=feat/simplify-payload-hashing#573542c273985cef2e0a9a61e3dea0188c5f9735"
+source = "git+https://github.com/Hyle-org/hyle-cosmos?branch=feat/simplify-payload-hashing#56eac73430cce856c0c8504df256bf129b3769ad"
 dependencies = [
  "serde",
 ]
