@@ -1,4 +1,5 @@
 payloads = [
+    3,
     470,
     37,
     73,
@@ -2798,7 +2799,6 @@ payloads = [
     0,
     0,
     0,
-    0,
 ]
 version = 1
 initial_state_len = 4
@@ -2809,6 +2809,6 @@ identity_len = 56
 identity = "3f368bf90c71946fc7b0cde9161ace42985d235f.ecdsa_secp256r1"
 tx_hash_len = 0
 tx_hash = []
-payload_len = 2785
+payloads_len = 2785
 index = 0
 success = 1
