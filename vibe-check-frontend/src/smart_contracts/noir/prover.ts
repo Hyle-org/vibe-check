@@ -17,6 +17,11 @@ export const proveECDSA = async (args: ECDSAArgs) => {
     let initial_state: number[] = [0, 0, 0, 0];
     let next_state: number[] = [0, 0, 0, 0];
     let tx_hash: number[] = [];
+    let payloads = args.payloads.slice(1, -1).split(" ");
+    let payloads_len = payloads.length;
+    // Fill payloads with 0 to match 2800 in size
+    payloads = payloads.concat(Array<string>(2800-payloads.length).fill("0"));
+
     const noirInput = {
         version: 1,
         initial_state_len: initial_state.length,
@@ -27,9 +32,10 @@ export const proveECDSA = async (args: ECDSAArgs) => {
         identity: args.identity,
         tx_hash_len: tx_hash.length,
         tx_hash: tx_hash,
+        payloads_len: payloads_len,
+        payloads: payloads,
         success: true,
         index: 0,
-        payloads: args.payloads.slice(1, -1).split(" "), // contains all the webauthn values, parsed as in Cairo
     };
     // Executing
     const { witness } = await noir.execute(noirInput);
