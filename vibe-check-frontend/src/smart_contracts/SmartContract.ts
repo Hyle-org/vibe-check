@@ -135,6 +135,8 @@ export function formatSmileTokenPayload(data?: {from: string, to: string, amount
 
 }
 
+// Corresponds to the number of payloads involved in the proving. Webauthn - Smile - SmileToken
+let payloadsCount = 3;
 // Webauthn
 export function computeWebAuthnPayload(args: ECDSAPayloadArgs): string {
     let authenticator_data_len = args.authenticator_data.length;
@@ -156,7 +158,7 @@ export function computeWebAuthnPayload(args: ECDSAPayloadArgs): string {
     let pub_key_y = `${pub_key_y_len} ${args.pub_key_y.join(" ")}`
 
     let total_length = authenticator_data_len + client_data_json_len + challenge_len + signature_len + pub_key_x_len + pub_key_y_len + 7
-    return `${total_length} ${authenticator_data} ${client_data_json} ${challenge} ${signature} ${pub_key_x} ${pub_key_y}`;
+    return `${payloadsCount} ${total_length} ${authenticator_data} ${client_data_json} ${challenge} ${signature} ${pub_key_x} ${pub_key_y} `;
 }
 
 // Smile
@@ -165,7 +167,7 @@ export function computeSmileArgs(args: CairoSmileArgs): string {
 }
 
 export function computeSmilePayload(args: CairoSmilePayloadArgs): string {
-    return `${args.image.length} ${args.image.join(" ")}`;
+    return `${args.image.length} ${args.image.join(" ")} `;
 }
 
 // Smile token
@@ -181,12 +183,9 @@ export function computeSmileTokenPayload(args: CairoSmileTokenPayloadArgs): stri
 
 // Gathering all payloads into one
 export function computePayload(payloadWebAuthnb64?: Uint8Array, payloadSmileb64?: Uint8Array, payloadSmileTokenb64?: Uint8Array){
-    let payloadWebAuthn = new TextDecoder().decode(payloadWebAuthnb64).slice(1, -1);
-    let payloadSmile = new TextDecoder().decode(payloadSmileb64).slice(1, -1);
-    let payloadSmileToken = new TextDecoder().decode(payloadSmileTokenb64).slice(1, -1);
+    let payloadWebAuthn = new TextDecoder().decode(payloadWebAuthnb64);
+    let payloadSmile = new TextDecoder().decode(payloadSmileb64);
+    let payloadSmileToken = new TextDecoder().decode(payloadSmileTokenb64);
 
-    // Length corresponds to the number of payloads involved in the proving
-    let length = 3
-    console.log(`[${length} ${payloadWebAuthn} ${payloadSmile} ${payloadSmileToken}]`)
-    return `[${length} ${payloadWebAuthn} ${payloadSmile} ${payloadSmileToken}]`;
+    return `[${payloadWebAuthn}${payloadSmile}${payloadSmileToken}]`;
 }
