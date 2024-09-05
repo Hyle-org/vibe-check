@@ -11,7 +11,7 @@ import {
 import { proveSmile, proveSmileTokenTransfer } from "@/smart_contracts/cairo/prover";
 import { proveECDSA } from "@/smart_contracts/noir/prover";
 import { CairoSmileArgs, CairoSmileTokenArgs, computePayload, ECDSAArgs } from "./SmartContract";
-import { getBalances } from "./SmileTokenIndexer";
+import { getBalances, getBalancesAtTx } from "./SmileTokenIndexer";
 import { network } from "@/network";
 
 export function useProving(
@@ -115,7 +115,7 @@ export function useProving(
         };
         // for smileToken
         const smileTokenArgs: CairoSmileTokenArgs = {
-            balances: getBalances(),
+            balances: getBalancesAtTx(txHash),
             payloads: gatheredPayloads,
         };
 
