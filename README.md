@@ -74,6 +74,8 @@ You will need a local Hylé node, we recommand you go through the [installation 
 ### Cairo proving server setup
 
 ```
+git clone https://github.com/Hyle-org/vibe-check.git
+cd vibe-check
 cd cairo-proving-server
 cargo build --release
 ./target/release/cairo-proving-server
@@ -83,6 +85,7 @@ cargo build --release
 #### Installation
 We recommand you to use [bun](https://bun.sh/docs/installation) for running the frontend part.
 ```
+cd ..
 cd vibe-check-frontend
 bun install
 bun run dev
