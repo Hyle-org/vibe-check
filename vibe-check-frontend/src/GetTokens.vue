@@ -8,23 +8,22 @@ import {
     signChallengeWithWebAuthn,
     getWebAuthnIdentity,
 } from "./webauthn";
-import { ensureContractsRegistered, broadcastVibeCheckPayload } from "./cosmos";
+import { ensureContractsRegistered, broadcastVibeCheckBlob } from "./hyle";
 
-import { setupCosmos, checkTxStatus, MsgPublishPayloads } from "hyle-js";
+import { network } from "./network.ts";
+import { checkTxStatus } from "hyle-js";
 
 import extLink from "./assets/external-link-svgrepo-com.vue";
-import { getNetworkRpcUrl } from "./network";
 import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
 import type {
-    CairoSmileTokenPayloadArgs,
-    ECDSAPayloadArgs,
-    CairoSmilePayloadArgs,
-    PayloadTx,
+    CairoSmileTokenBlobArgs,
+    ECDSABlobArgs,
+    CairoSmileBlobArgs,
+    BlobTx,
 } from "@/smart_contracts/SmartContract";
-import { DeliverTxResponse } from "@cosmjs/stargate";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
 
 // These are references to HTML elements
@@ -50,17 +49,17 @@ const error = ref<string | null>(null);
 const identityRef = ref("");
 const txHash = ref<string | null>(null);
 
-const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, computePayloadsAndProve } = useProving(
+const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, computeBlobsAndProve } = useProving(
     status as any,
     error,
     txHash,
 );
 
-let webAuthnPayloadArgs: ECDSAPayloadArgs;
-let smilePayloadArgs: CairoSmilePayloadArgs;
-let smileTokenPayloadArgs: CairoSmileTokenPayloadArgs;
-let payloadTxResp: DeliverTxResponse;
-let payloadTx: PayloadTx;
+let webAuthnBlobArgs: ECDSABlobArgs;
+let smileBlobArgs: CairoSmileBlobArgs;
+let smileTokenBlobArgs: CairoSmileTokenBlobArgs;
+let blobTxHash: string;
+let blobTx: BlobTx;
 
 // Match screen to status
 watchEffect(() => {
@@ -81,11 +80,11 @@ watchEffect(() => {
         failed_vibe: "screenshot",
         success_vibe: "screenshot",
 
-        payload: "payload",
-        checking_payload_tx: "payload",
-        failed_at_payload: "payload",
-        payload_tx_success: "payload",
-        payload_tx_failure: "payload",
+        blob: "blob",
+        checking_blob_tx: "blob",
+        failed_at_blob: "blob",
+        blob_tx_success: "blob",
+        blob_tx_failure: "blob",
 
         proving: "proving",
         checking_tx: "proving",
@@ -99,7 +98,6 @@ watchEffect(() => {
 onMounted(async () => {
     // For some reason this fails if done too early
     await faceApi.nets.tinyFaceDetector.loadFromUri("/models");
-    await setupCosmos(getNetworkRpcUrl());
     await ensureContractsRegistered();
     identityRef.value = getWebAuthnIdentity();
     onnxSessionRef.value = await ort.InferenceSession.create("./models/smile.onnx");
@@ -328,8 +326,8 @@ const retryScreenshot = () => {
     activateCamera();
 };
 
-const signAndSendPayloadTx = async () => {
-    status.value = "payload";
+const signAndSendBlobTx = async () => {
+    status.value = "blob";
     let identity: string;
     if (identityRef.value) {
         identity = identityRef.value;
@@ -351,61 +349,56 @@ const signAndSendPayloadTx = async () => {
         });
 
         const challenge = Uint8Array.from("0123456789abcdef0123456789abcdef", (c) => c.charCodeAt(0));
-        webAuthnPayloadArgs = await signChallengeWithWebAuthn(challenge);
+        webAuthnBlobArgs = await signChallengeWithWebAuthn(challenge);
 
         // Start locally proving that we are who we claim to be by signing the transaction hash
         // Send the proof of smile to Giza or something
         const cairoGrayScale = grayScale.map((pixel) => Math.round(pixel * 100000));
 
-        smilePayloadArgs = {
+        smileBlobArgs = {
             image: [...cairoGrayScale],
         };
 
         // Locally or backend prove an erc20 transfer
-        smileTokenPayloadArgs = {
+        smileTokenBlobArgs = {
             from: "faucet",
             to: identity,
             amount: 100,
         };
 
         // Create and send the transaction
-        [payloadTx, payloadTxResp] = await broadcastVibeCheckPayload(
+        [blobTx, blobTxHash] = await broadcastVibeCheckBlob(
             identity,
-            webAuthnPayloadArgs,
-            smilePayloadArgs,
-            smileTokenPayloadArgs,
+            webAuthnBlobArgs,
+            smileBlobArgs,
+            smileTokenBlobArgs,
         );
-        console.log("PayloadTx: ", payloadTxResp.transactionHash);
+        console.log("BlobTxHash: ", blobTxHash);
 
         // Switch to waiter view
-        status.value = "checking_payload_tx";
+        status.value = "checking_blob_tx";
 
         // Wait a bit and assume TX will be processed
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
 
         // Check the status of the TX
-        const txStatus = await checkTxStatus(payloadTxResp.transactionHash);
+        const txStatus = await checkTxStatus(network, blobTxHash);
         if (txStatus.status === "success") {
-            status.value = "payload_tx_success";
-            txHash.value = payloadTxResp.transactionHash;
+            status.value = "blob_tx_success";
+            txHash.value = blobTxHash;
         } else {
-            status.value = "payload_tx_failure";
+            status.value = "blob_tx_failure";
             error.value = txStatus.error || "Unknown error";
         }
     } catch (e) {
         console.error(e);
         error.value = `${e}`;
-        status.value = "failed_at_payload";
+        status.value = "failed_at_blob";
     }
 };
 
 const proveRemotely = async () => {
-    // payloadTx has been created for cosmos compatibility. Needs formatting to be casted as MsgPublishPayload
-    let parsedTransaction: MsgPublishPayloads = { identity: payloadTx.identity, payloads: [] };
-    parsedTransaction.payloads = payloadTx.payloads.map((dict) => {
-        return { contractName: dict.contractName, data: new TextEncoder().encode(window.atob(dict.data)) };
-    });
-    await computePayloadsAndProve(parsedTransaction, txHash.value!);
+    await computeBlobsAndProve(blobTx, txHash.value!);
 };
 
 const vTriggerScroll = {
@@ -510,23 +503,23 @@ const vTriggerScroll = {
                             Vibe check passed. You are vibing.
                         </p>
                         <div
-                            v-else-if="screen === 'payload' && status !== 'failed_at_payload'"
+                            v-else-if="screen === 'blob' && status !== 'failed_at_blob'"
                             class="text-white p-8 bg-black bg-opacity-50 rounded-xl overflow-hidden"
                         >
                             <div :class="`relative scrollOnSuccess ${status}`">
-                                <div v-if="status === 'payload'" class="flex flex-col justify-center items-center my-8">
+                                <div v-if="status === 'blob'" class="flex flex-col justify-center items-center my-8">
                                     <i class="spinner"></i>
                                     <p class="italic">...Sending transaction...</p>
                                 </div>
                                 <div
-                                    v-if="status === 'checking_payload_tx'"
+                                    v-if="status === 'checking_blob_tx'"
                                     class="flex flex-col justify-center items-center my-8"
                                 >
                                     <i class="spinner"></i>
                                     <p class="italic">...TX sent, checking status...</p>
                                 </div>
                                 <div
-                                    v-if="status === 'payload_tx_success'"
+                                    v-if="status === 'blob_tx_success'"
                                     class="flex flex-col justify-center items-center py-16"
                                     v-trigger-scroll
                                 >
@@ -550,7 +543,7 @@ const vTriggerScroll = {
                                     >
                                 </div>
                                 <div
-                                    v-if="status === 'payload_tx_failure'"
+                                    v-if="status === 'blob_tx_failure'"
                                     class="flex flex-col justify-center items-center my-8"
                                 >
                                     <p class="text-center font-semibold font-anton uppercase mb-2">TX failed</p>
@@ -559,7 +552,7 @@ const vTriggerScroll = {
                             </div>
                         </div>
                         <div
-                            v-else-if="status === 'failed_at_payload'"
+                            v-else-if="status === 'failed_at_blob'"
                             class="text-white p-10 bg-black bg-opacity-50 rounded-xl flex flex-col gap-2"
                         >
                             <p class="text-center font-semibold font-anton uppercase mb-2">An error occured</p>
@@ -632,12 +625,12 @@ const vTriggerScroll = {
                 </div>
                 <div class="flex justify-center my-8 gap-4">
                     <button
-                        @click="signAndSendPayloadTx"
+                        @click="signAndSendBlobTx"
                         :disabled="
                             status !== 'failed_vibe' &&
                             status !== 'success_vibe' &&
                             status !== 'failed_at_proving' &&
-                            status !== 'failed_at_payload'
+                            status !== 'failed_at_blob'
                         "
                     >
                         Send TX

@@ -2,10 +2,10 @@ import { serByteArray, deserByteArray, uint8ArrayToBase64 } from "hyle-js";
 
 export type CairoSmileTokenArgs = {
     balances: { name: string; amount: number }[];
-    payloads: string;
+    blobs: string;
 };
 
-export type CairoSmileTokenPayloadArgs = {
+export type CairoSmileTokenBlobArgs = {
     amount: number;
     from: string;
     to: string;
@@ -13,19 +13,19 @@ export type CairoSmileTokenPayloadArgs = {
 
 export type CairoSmileArgs = {
     identity: string;
-    payloads: string;
+    blobs: string;
 };
 
-export type CairoSmilePayloadArgs = {
+export type CairoSmileBlobArgs = {
     image: number[];
 };
 
 export type ECDSAArgs = {
     identity: string;
-    payloads: string;
+    blobs: string;
 };
 
-export type ECDSAPayloadArgs = {
+export type ECDSABlobArgs = {
     authenticator_data: number[];
     client_data_json_len: number;
     client_data_json: number[];
@@ -35,12 +35,12 @@ export type ECDSAPayloadArgs = {
     pub_key_y: number[];
 };
 
-export type PayloadTx = {
+export type BlobTx = {
     identity: string,
-    payloads: {contractName: string, data: string}[]
+    blobs: {contractName: string, data: string}[]
 }
 
-// export function parseECDSAPayload(txHash: string, identity: string, data?: Uint8Array) {
+// export function parseECDSABlob(txHash: string, identity: string, data?: Uint8Array) {
 //     if (!data) return undefined;
 
 //     let challenge = [...Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0))];
@@ -49,7 +49,7 @@ export type PayloadTx = {
 
 //     const parsed = new TextDecoder().decode(data);
 //     let felts = parsed.slice(1, -1).split(" ");
-//     const _payloadSize = parseInt(felts.shift() as string);
+//     const _blobsize = parseInt(felts.shift() as string);
     
 //     // authenticator_data
 //     const authenticatorDataLen = parseInt(felts.shift() as string);
@@ -101,11 +101,11 @@ export type PayloadTx = {
 //     } as ECDSAArgs;
 // }
 
-export function parseSmileTokenPayload(data?: Uint8Array) {
+export function parseSmileTokenBlob(data?: Uint8Array) {
     if (!data) return undefined;
     const parsed = new TextDecoder().decode(data);
     const felts = parsed.slice(1, -1).split(" ");
-    const _payloadSize = parseInt(felts.shift() as string);
+    const _blobSize = parseInt(felts.shift() as string);
     const fromSize = parseInt(felts[0]);
     const from = deserByteArray(felts.slice(0, fromSize + 3));
     const toSize = parseInt(felts[3 + fromSize]);
@@ -118,7 +118,7 @@ export function parseSmileTokenPayload(data?: Uint8Array) {
     }
 }
 
-export function parseMLPayload(data?: Uint8Array) {
+export function parseMLBlob(data?: Uint8Array) {
     if (!data) return [];
     const asb64 = uint8ArrayToBase64(data);
     // Parse base64 into ascii
@@ -129,14 +129,14 @@ export function parseMLPayload(data?: Uint8Array) {
     return numbers;
 }
 
-export function formatSmileTokenPayload(data?: {from: string, to: string, amount: number}) {
+export function formatSmileTokenBlob(data?: {from: string, to: string, amount: number}) {
     if (!data) return "Unknown";
     return `${data.from} => ${data.to} (${data.amount} hylé)`;
 
 }
 
 // Webauthn
-export function computeWebAuthnPayload(args: ECDSAPayloadArgs): string {
+export function computeWebAuthnBlob(args: ECDSABlobArgs): string {
     let authenticator_data_len = args.authenticator_data.length;
     let authenticator_data = `${authenticator_data_len} ${args.authenticator_data.join(" ")}`
     
@@ -161,31 +161,28 @@ export function computeWebAuthnPayload(args: ECDSAPayloadArgs): string {
 
 // Smile
 export function computeSmileArgs(args: CairoSmileArgs): string {
-    return `[${serByteArray(args.identity)} 1 ${args.payloads.slice(1, -1)}]`;
+    return `[${serByteArray(args.identity)} 1 ${args.blobs.slice(1, -1)}]`;
 }
 
-export function computeSmilePayload(args: CairoSmilePayloadArgs): string {
+export function computeSmileBlob(args: CairoSmileBlobArgs): string {
     return `${args.image.length} ${args.image.join(" ")}`;
 }
 
 // Smile token
 export function computeSmileTokenArgs(args: CairoSmileTokenArgs): string {
-    let payload = args.payloads.slice(1, -1)
+    let blob = args.blobs.slice(1, -1)
     let parsedBalances = args.balances.map((x) => `${serByteArray(x.name)} ${x.amount}`).join(" ");
-    return `[${args.balances.length} ${parsedBalances} 2 ${payload}]`;
+    return `[${args.balances.length} ${parsedBalances} 2 ${blob}]`;
 }
-export function computeSmileTokenPayload(args: CairoSmileTokenPayloadArgs): string {
-    let payload = `${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`;
-    return `${payload.split(" ").length} ${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`;
+export function computeSmileTokenBlob(args: CairoSmileTokenBlobArgs): string {
+    let blob = `${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`;
+    return `${blob.split(" ").length} ${serByteArray(args.from)} ${serByteArray(args.to)} ${args.amount}`;
 }
 
-// Gathering all payloads into one
-export function computePayload(payloadWebAuthnb64?: Uint8Array, payloadSmileb64?: Uint8Array, payloadSmileTokenb64?: Uint8Array){
-    let payloadWebAuthn = new TextDecoder().decode(payloadWebAuthnb64);
-    let payloadSmile = new TextDecoder().decode(payloadSmileb64);
-    let payloadSmileToken = new TextDecoder().decode(payloadSmileTokenb64);
+// Gathering all blob into one
+export function computeBlob(blobWebAuthn: string, blobSmile: string, blobSmileToken: string){
 
-    // Length corresponds to the number of payloads involved in the proving
+    // Length corresponds to the number of blobs involved in the proving
     let length = 3
-    return `[${length} ${payloadWebAuthn} ${payloadSmile} ${payloadSmileToken}]`;
+    return `[${length} ${blobWebAuthn} ${blobSmile} ${blobSmileToken}]`;
 }

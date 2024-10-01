@@ -7,18 +7,19 @@ export function getBalances(): { name: string; amount: number }[] {
 }
 
 export function getBalancesAtTx(txHash: string) {
-    const lastIndex = allTransactions.value.findIndex((tx) => tx.hash === txHash);
-    if (lastIndex === -1) return [];
-    const txs = allTransactions.value
-        .slice(0, lastIndex)
-        .filter((tx) => tx.status === "success" || tx.status === "sequenced");
-    const contract = new Erc20Parser("smile_token");
-    contract.balancesPending["faucet"] = 1000000;
-    txs.forEach((tx) => {
-        if (!tx.type) return;
-        contract.consumeTx(tx);
-    });
-    return Object.entries(contract.balancesPending).map(([name, amount]) => ({ name, amount }));
+    // const lastIndex = allTransactions.value.findIndex((tx) => tx.hash === txHash);
+    // if (lastIndex === -1) return [];
+    // const txs = allTransactions.value
+    //     .slice(0, lastIndex)
+    //     .filter((tx) => tx.status === "success" || tx.status === "sequenced");
+    // const contract = new Erc20Parser("smile_token");
+    // contract.balancesPending["faucet"] = 1000000;
+    // txs.forEach((tx) => {
+    //     if (!tx.type) return;
+    //     contract.consumeTx(tx);
+    // });
+    // return Object.entries(contract.balancesPending).map(([name, amount]) => ({ name, amount }));
+    return [{name: "faucet", amount: 1000000}];
 }
 
 export type BalanceChange = {
