@@ -2,14 +2,17 @@
 import Socials from "./components/Socials.vue";
 import { computed } from "vue";
 import { allTransactions } from "@/smart_contracts/SmileTokenIndexer";
-import { parseSmileTokenPayload, formatSmileTokenPayload, parseMLPayload } from "@/smart_contracts/SmartContract";
+import { parseSmileTokenBlob, formatSmileTokenBlob, parseMLBlob } from "@/smart_contracts/SmartContract";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
 import { getParsedTx, MsgPublishPayloads } from "hyle-js";
 
 const parsedTransactions = computed(() => {
     const ret = {} as Record<string, MsgPublishPayloads>;
     for (const tx of allTransactions.value) {
-        if (tx.type) ret[tx.hash] = getParsedTx(tx);
+        if (tx.type) {
+            ret[tx.hash] = getParsedTx(tx);
+            console.log(tx);
+        }
     }
     return ret;
 });
@@ -36,15 +39,8 @@ function createMlImage(numbers: string[]) {
     return canvas.toDataURL();
 }
 
-const {
-    ecdsaPromiseDone,
-    smilePromiseDone,
-    smileTokenPromiseDone,
-    status,
-    error,
-    computePayloadsAndProve,
-    getPayload,
-} = useProving();
+const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, status, error, computeBlobsAndProve, getBlob } =
+    useProving();
 </script>
 
 <template>
@@ -77,23 +73,26 @@ const {
                     </template>
                 </div>
                 <div class="flex-1 px-4 py-1">
-                    <img v-if="tx.type" class="min-w-12"
-                        :src="createMlImage(parseMLPayload(getPayload(parsedTransactions[tx.hash], 'smile')))" />
+                    <img
+                        v-if="tx.type"
+                        class="min-w-12"
+                        :src="createMlImage(parseMLBlob(getBlob(parsedTransactions[tx.hash], 'smile')))"
+                    />
                     <div class="ml-4 inline-flex flex-col flex-1">
                         <p>
                             Transaction hash: <span class="font-mono text-sm">0x{{ tx.hash }}</span>
                         </p>
                         <p>
                             {{
-                formatSmileTokenPayload(
-                    parseSmileTokenPayload(getPayload(parsedTransactions[tx.hash], "smile_token")),
-                )
-            }}
+                                formatSmileTokenBlob(
+                                    parseSmileTokenBlob(getBlob(parsedTransactions[tx.hash], "smile_token")),
+                                )
+                            }}
                         </p>
                     </div>
                 </div>
                 <div class="w-24 px-4 border-l-2" v-if="tx.status === 'sequenced'">
-                    <button @click="computePayloadsAndProve(parsedTransactions[tx.hash], tx.hash)">Prove</button>
+                    <button @click="computeBlobsAndProve(parsedTransactions[tx.hash], tx.hash)">Prove</button>
                 </div>
             </div>
         </div>
@@ -110,8 +109,8 @@ const {
                     Generating proof of smile: <i v-if="!smilePromiseDone" class="spinner"></i><span v-else>✅</span>
                 </p>
                 <p class="flex items-center">
-                    Generating ERC20 claim proof: <i v-if="!smileTokenPromiseDone" class="spinner"></i><span
-                        v-else>✅</span>
+                    Generating ERC20 claim proof: <i v-if="!smileTokenPromiseDone" class="spinner"></i
+                    ><span v-else>✅</span>
                 </p>
                 <p class="flex items-center gap-1">
                     Sending Proofs: <i v-if="status === 'proving'" class="spinner"></i><span v-else>✅</span>
@@ -120,8 +119,11 @@ const {
                     <i class="spinner"></i>
                     <p class="italic">...TX sent, checking status...</p>
                 </div>
-                <button v-if="status === 'tx_success'" @click="status = 'idle'"
-                    class="bg-secondary text-primary p-2 rounded-xl">
+                <button
+                    v-if="status === 'tx_success'"
+                    @click="status = 'idle'"
+                    class="bg-secondary text-primary p-2 rounded-xl"
+                >
                     Close
                 </button>
             </template>
@@ -138,7 +140,7 @@ const {
     @apply bg-secondary bg-opacity-20 flex content-stretch;
 }
 
-.tx>div {
+.tx > div {
     @apply border-secondary border-opacity-20 inline-flex items-center justify-center;
 }
 

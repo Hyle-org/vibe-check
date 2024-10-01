@@ -2,7 +2,7 @@ use crate::utils::extract_array;
 
 global CLIENT_DATA_JSON_LEN = 255;
 
-struct WebAuthnPayload {
+struct WebAuthnBlob {
     authenticator_data: [u8; 37],
     client_data_json_len: u8,
     client_data_json: [u8; CLIENT_DATA_JSON_LEN],
@@ -12,90 +12,90 @@ struct WebAuthnPayload {
     pub_key_y: [u8; 32],
 }
 
-struct Payloads {
-    webauthn: WebAuthnPayload,
+struct Blobs {
+    webauthn: WebAuthnBlob,
     smile:[u8; 1],
     smile_token:[u8; 1]
 }
 
-fn parse_webauthn_cairo_payload(cairo_payload: [Field; 471]) -> WebAuthnPayload {
+fn parse_webauthn_cairo_blob(cairo_blob: [Field; 471]) -> WebAuthnBlob {
     // Checking overall size is correct
-    let webauthn_cairo_payload_len = cairo_payload[0];
-    assert(webauthn_cairo_payload_len == 470);
+    let webauthn_cairo_blob_len = cairo_blob[0];
+    assert(webauthn_cairo_blob_len == 470);
 
     // Casting from Field to u8
-    let mut webauthn_cairo_payload: [u8; 470] = [0; 470];
+    let mut webauthn_cairo_blob: [u8; 470] = [0; 470];
     for i in 0..470 {
-        webauthn_cairo_payload[i] = cairo_payload[i+1] as u8;
+        webauthn_cairo_blob[i] = cairo_blob[i+1] as u8;
     }
 
     // Initialize counter
     let mut n = 0;
 
     // authenticator_data
-    let authenticator_data_len = webauthn_cairo_payload[n];
+    let authenticator_data_len = webauthn_cairo_blob[n];
     n = n + 1;
     assert(authenticator_data_len == 37);
-    let authenticator_data = extract_array(webauthn_cairo_payload, n, 37);
+    let authenticator_data = extract_array(webauthn_cairo_blob, n, 37);
     n = n + authenticator_data_len as u32;
 
     // client_data_json
-    let client_data_json_len = webauthn_cairo_payload[n];
+    let client_data_json_len = webauthn_cairo_blob[n];
     n = n + 1 + 1; // Adding extra +1 for CLIENT_DATA_JSON_LEN value
-    let client_data_json = extract_array(webauthn_cairo_payload, n, CLIENT_DATA_JSON_LEN);
+    let client_data_json = extract_array(webauthn_cairo_blob, n, CLIENT_DATA_JSON_LEN);
     n = n + CLIENT_DATA_JSON_LEN;
 
     // challenge
-    let challenge_len = webauthn_cairo_payload[n];
+    let challenge_len = webauthn_cairo_blob[n];
     n = n + 1;
     assert(challenge_len == 43);
-    let challenge = extract_array(webauthn_cairo_payload, n, 43);
+    let challenge = extract_array(webauthn_cairo_blob, n, 43);
     n = n + challenge_len as u32;
 
     // signature
-    let signature_len = webauthn_cairo_payload[n];
+    let signature_len = webauthn_cairo_blob[n];
     n = n + 1;
     assert(signature_len == 64);
-    let signature = extract_array(webauthn_cairo_payload, n, 64);
+    let signature = extract_array(webauthn_cairo_blob, n, 64);
     n = n + signature_len as u32;
 
     // pub_key_x
-    let pub_key_x_len = webauthn_cairo_payload[n];
+    let pub_key_x_len = webauthn_cairo_blob[n];
     n = n + 1;
     assert(pub_key_x_len == 32);
-    let pub_key_x = extract_array(webauthn_cairo_payload, n, 32);
+    let pub_key_x = extract_array(webauthn_cairo_blob, n, 32);
     n = n + pub_key_x_len as u32;
 
     // pub_key_y
-    let pub_key_y_len = webauthn_cairo_payload[n];
+    let pub_key_y_len = webauthn_cairo_blob[n];
     n = n + 1;
     assert(pub_key_y_len == 32);
-    let pub_key_y = extract_array(webauthn_cairo_payload, n, 32);
+    let pub_key_y = extract_array(webauthn_cairo_blob, n, 32);
     n = n + pub_key_y_len as u32;
 
-    let webauthn_payload : WebAuthnPayload = WebAuthnPayload { authenticator_data, client_data_json_len, client_data_json, challenge, signature, pub_key_x, pub_key_y };
-    webauthn_payload
+    let webauthn_blob : WebAuthnBlob = WebAuthnBlob { authenticator_data, client_data_json_len, client_data_json, challenge, signature, pub_key_x, pub_key_y };
+    webauthn_blob
 }
 
-pub fn parse_cairo_payloads(index: u32, payloads: [Field; 2800]) -> WebAuthnPayload {
-    // TODO: take into account the index to select correct payload
+pub fn parse_cairo_blobs(index: u32, blobs: [Field; 2800]) -> WebAuthnBlob {
+    // TODO: take into account the index to select correct blob
     assert(index == 0);
-    // First value of payloads is the number of payload contained
+    // First value of blobs is the number of blob contained
     let mut n = 1;
 
-    // webauthn_payload
-    let webauthn_len = payloads[n];
+    // webauthn_blob
+    let webauthn_len = blobs[n];
     assert(webauthn_len == 470);
-    let webauthn_cairo_payload = extract_array(payloads, n as u32, 1 + 470 as u32);
-    let webauthn_payload = parse_webauthn_cairo_payload(webauthn_cairo_payload);
+    let webauthn_cairo_blob = extract_array(blobs, n as u32, 1 + 470 as u32);
+    let webauthn_blob = parse_webauthn_cairo_blob(webauthn_cairo_blob);
     n = n + webauthn_len + 1;
 
-    webauthn_payload
+    webauthn_blob
 }
 
 #[test]
-fn test_parse_webauthn_payload() {
-    let webauthn_cairo_payload: [Field; 471] = [
+fn test_parse_webauthn_blob() {
+    let webauthn_cairo_blob: [Field; 471] = [
         470,
         37,
         73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174, 185, 162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 1, 0, 0, 0, 2,
@@ -111,7 +111,7 @@ fn test_parse_webauthn_payload() {
         32,
         169, 8, 63, 83, 58, 93, 192, 39, 114, 115, 138, 176, 56, 254, 162, 127, 93, 19, 156, 93, 51, 9, 194, 161, 253, 10, 203, 128, 171, 254, 255, 83
     ];
-    let webauthn_payload = parse_webauthn_cairo_payload(webauthn_cairo_payload);
+    let webauthn_blob = parse_webauthn_cairo_blob(webauthn_cairo_blob);
 
     let authenticator_data = [
         73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174, 185, 162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 1, 0, 0, 0, 2
@@ -139,17 +139,17 @@ fn test_parse_webauthn_payload() {
     let pub_key_y = [
         169, 8, 63, 83, 58, 93, 192, 39, 114, 115, 138, 176, 56, 254, 162, 127, 93, 19, 156, 93, 51, 9, 194, 161, 253, 10, 203, 128, 171, 254, 255, 83
     ];
-    assert(webauthn_payload.authenticator_data == authenticator_data);
-    assert(webauthn_payload.client_data_json == client_data_json);
-    assert(webauthn_payload.challenge == challenge);
-    assert(webauthn_payload.signature == signature);
-    assert(webauthn_payload.pub_key_x == pub_key_x);
-    assert(webauthn_payload.pub_key_y == pub_key_y);
+    assert(webauthn_blob.authenticator_data == authenticator_data);
+    assert(webauthn_blob.client_data_json == client_data_json);
+    assert(webauthn_blob.challenge == challenge);
+    assert(webauthn_blob.signature == signature);
+    assert(webauthn_blob.pub_key_x == pub_key_x);
+    assert(webauthn_blob.pub_key_y == pub_key_y);
 }
 
 #[test]
-fn test_parse_payloads() {
-    let payloads: [Field; 2800] = [
+fn test_parse_blobs() {
+    let blobs: [Field; 2800] = [
         3,
         470,
         37, 73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174, 185, 162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 1, 0, 0, 0, 2, 134, 255, 123, 34, 116, 121, 112, 101, 34, 58, 34, 119, 101, 98, 97, 117, 116, 104, 110, 46, 103, 101, 116, 34, 44, 34, 99, 104, 97, 108, 108, 101, 110, 103, 101, 34, 58, 34, 77, 68, 69, 121, 77, 122, 81, 49, 78, 106, 99, 52, 79, 87, 70, 105, 89, 50, 82, 108, 90, 106, 65, 120, 77, 106, 77, 48, 78, 84, 89, 51, 79, 68, 108, 104, 89, 109, 78, 107, 90, 87, 89, 34, 44, 34, 111, 114, 105, 103, 105, 110, 34, 58, 34, 104, 116, 116, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104, 111, 115, 116, 58, 53, 49, 55, 51, 34, 44, 34, 99, 114, 111, 115, 115, 79, 114, 105, 103, 105, 110, 34, 58, 102, 97, 108, 115, 101, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 77, 68, 69, 121, 77, 122, 81, 49, 78, 106, 99, 52, 79, 87, 70, 105, 89, 50, 82, 108, 90, 106, 65, 120, 77, 106, 77, 48, 78, 84, 89, 51, 79, 68, 108, 104, 89, 109, 78, 107, 90, 87, 89, 64, 80, 114, 197, 245, 128, 150, 206, 160, 135, 105, 51, 205, 42, 143, 25, 53, 119, 97, 166, 196, 95, 98, 53, 63, 168, 171, 63, 85, 41, 42, 196, 134, 26, 198, 126, 179, 109, 99, 41, 92, 86, 45, 240, 238, 196, 106, 77, 219, 146, 196, 183, 80, 225, 170, 66, 218, 169, 244, 230, 252, 61, 213, 29, 201, 32, 201, 91, 99, 172, 65, 154, 80, 154, 189, 195, 194, 210, 62, 219, 224, 36, 43, 134, 143, 236, 137, 178, 121, 35, 112, 146, 103, 238, 37, 100, 145, 26, 32, 169, 8, 63, 83, 58, 93, 192, 39, 114, 115, 138, 176, 56, 254, 162, 127, 93, 19, 156, 93, 51, 9, 194, 161, 253, 10, 203, 128, 171, 254, 255, 83,
@@ -159,7 +159,7 @@ fn test_parse_payloads() {
         0, 112568767309172, 6, 1, 175285199027252607942330356499331179285261039416457052358062226228862137957, 352748885689853111792340362419153546690909839254974950175281, 25, 100,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ];
-    let webauthn_payload = parse_cairo_payloads(0, payloads);
+    let webauthn_blob = parse_cairo_blobs(0, blobs);
 
     let authenticator_data = [
         73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174, 185, 162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 1, 0, 0, 0, 2
@@ -187,10 +187,10 @@ fn test_parse_payloads() {
     let pub_key_y = [
         169, 8, 63, 83, 58, 93, 192, 39, 114, 115, 138, 176, 56, 254, 162, 127, 93, 19, 156, 93, 51, 9, 194, 161, 253, 10, 203, 128, 171, 254, 255, 83
     ];
-    assert(webauthn_payload.authenticator_data == authenticator_data);
-    assert(webauthn_payload.client_data_json == client_data_json);
-    assert(webauthn_payload.challenge == challenge);
-    assert(webauthn_payload.signature == signature);
-    assert(webauthn_payload.pub_key_x == pub_key_x);
-    assert(webauthn_payload.pub_key_y == pub_key_y);
+    assert(webauthn_blob.authenticator_data == authenticator_data);
+    assert(webauthn_blob.client_data_json == client_data_json);
+    assert(webauthn_blob.challenge == challenge);
+    assert(webauthn_blob.signature == signature);
+    assert(webauthn_blob.pub_key_x == pub_key_x);
+    assert(webauthn_blob.pub_key_y == pub_key_y);
 }

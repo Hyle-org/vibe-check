@@ -9,17 +9,17 @@ fn main(input: Array<felt252>) -> Array<felt252> {
 
     let mut input = input.span();
 
-    let (mut identity, index, payloads): (ByteArray, u32, Array<Array<felt252>>) = Serde::deserialize(
+    let (mut identity, index, blobs): (ByteArray, u32, Array<Array<felt252>>) = Serde::deserialize(
         ref input
     ).unwrap();
 
-    let smile_payload = payloads.at(index);
+    let smile_blob = blobs.at(index);
 
     let mut conv: Array<i32> = ArrayTrait::new();
     let mut n = 0;
     
-    while n < smile_payload.len() {
-        let val:i32 =(*smile_payload[n]).try_into().unwrap();
+    while n < smile_blob.len() {
+        let val:i32 =(*smile_blob[n]).try_into().unwrap();
         conv.append(val);
         n = n +1;
     };
@@ -300,7 +300,7 @@ fn main(input: Array<felt252>) -> Array<felt252> {
     let success = result >= -146633_i32;
 
     processHyleOutput(
-        1, initial_state.clone(), initial_state.clone(), identity, 0, index, payloads, success, program_output,
+        1, initial_state.clone(), initial_state.clone(), identity, 0, index, blobs, success, program_output,
     )
 }
 
@@ -314,7 +314,7 @@ struct HyleOutput {
     identity: ByteArray,
     tx_hash: felt252,
     index: u32,
-    payloads: Array<Array<felt252>>,
+    blobs: Array<Array<felt252>>,
     success: bool,
     program_outputs: Array<felt252>
 }
@@ -343,7 +343,7 @@ fn processHyleOutput(
     identity: ByteArray,
     tx_hash: felt252,
     index: u32,
-    payloads: Array<Array<felt252>>,
+    blobs: Array<Array<felt252>>,
     success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
@@ -355,7 +355,7 @@ fn processHyleOutput(
         identity: identity,
         tx_hash: tx_hash,
         index: index,
-        payloads: payloads,
+        blobs: blobs,
         success: success,
         program_outputs: program_output,
     };

@@ -1,9 +1,9 @@
 mod utils;
-mod payloads;
+mod blobs;
 
 use dep::std;
 use dep::std::println;
-use crate::payloads::{parse_cairo_payloads, Payloads, WebAuthnPayload};
+use crate::blobs::{parse_cairo_blobs, Blobs, WebAuthnBlob};
 use crate::utils::{prefix_sha256_hash, concatenate_arrays, check_pubkey_matches_identity};
 
 fn main(
@@ -17,34 +17,30 @@ fn main(
     tx_hash_len: pub u32,
     tx_hash: pub [u8; 0],
     index: pub u32,
-    payloads_len: pub u32,
-    payloads: pub [Field; 2800],
+    blobs_len: pub u32,
+    blob: pub [Field; 2800],
     success: pub bool
 ) {
-    let webauthn_payload = parse_cairo_payloads(index, payloads);
+    let webauthn_blob = parse_cairo_blobs(index, blob);
     let client_data_json_hash = prefix_sha256_hash(
-        webauthn_payload.client_data_json_len,
-        webauthn_payload.client_data_json
+        webauthn_blob.client_data_json_len,
+        webauthn_blob.client_data_json
     );
-    let concat = concatenate_arrays(webauthn_payload.authenticator_data, client_data_json_hash);
+    let concat = concatenate_arrays(webauthn_blob.authenticator_data, client_data_json_hash);
     let hashed_data = std::hash::sha256(concat);
 
     // Verifying pub_key matches the identity
-    check_pubkey_matches_identity(
-        webauthn_payload.pub_key_x,
-        webauthn_payload.pub_key_y,
-        identity
-    );
+    check_pubkey_matches_identity(webauthn_blob.pub_key_x, webauthn_blob.pub_key_y, identity);
 
     // Check the challenge
-    for i in 0..webauthn_payload.challenge.len() {
-        assert(webauthn_payload.challenge[i] == webauthn_payload.client_data_json[36 + i]);
+    for i in 0..webauthn_blob.challenge.len() {
+        assert(webauthn_blob.challenge[i] == webauthn_blob.client_data_json[36 + i]);
     }
 
     let valid_signature = std::ecdsa_secp256r1::verify_signature(
-        webauthn_payload.pub_key_x,
-        webauthn_payload.pub_key_y,
-        webauthn_payload.signature,
+        webauthn_blob.pub_key_x,
+        webauthn_blob.pub_key_y,
+        webauthn_blob.signature,
         hashed_data
     );
 
@@ -72,9 +68,9 @@ fn test_webauthn_verification_from_vibe_checker_134() {
     let tx_hash = [];
 
     let index = 0;
-    let payloads_len = 2800;
+    let blobs_len = 2800;
 
-    let payloads: [Field; 2800] = [
+    let blob: [Field; 2800] = [
         3,
         470,
         37,// authenticator_data
@@ -110,8 +106,8 @@ fn test_webauthn_verification_from_vibe_checker_134() {
         tx_hash_len,
         tx_hash,
         index,
-        payloads_len,
-        payloads,
+        blobs_len,
+        blob,
         success
     );
 }
@@ -129,9 +125,9 @@ fn test_webauthn_verification_from_vibe_checker_243() {
     let tx_hash = [];
 
     let index = 0;
-    let payloads_len = 2800;
+    let blobs_len = 2800;
 
-    let payloads: [Field; 2800] = [
+    let blob: [Field; 2800] = [
         3,
         470,
         37,// authenticator_data
@@ -167,8 +163,8 @@ fn test_webauthn_verification_from_vibe_checker_243() {
         tx_hash_len,
         tx_hash,
         index,
-        payloads_len,
-        payloads,
+        blobs_len,
+        blob,
         success
     );
 }
@@ -186,9 +182,9 @@ fn test_webauthn_verification_from_vibe_checker_243_bis() {
     let tx_hash = [];
 
     let index = 0;
-    let payloads_len = 2800;
+    let blobs_len = 2800;
 
-    let payloads: [Field; 2800] = [
+    let blob: [Field; 2800] = [
         3,
         470,
         37,// authenticator_data
@@ -224,8 +220,8 @@ fn test_webauthn_verification_from_vibe_checker_243_bis() {
         tx_hash_len,
         tx_hash,
         index,
-        payloads_len,
-        payloads,
+        blobs_len,
+        blob,
         success
     );
 }
