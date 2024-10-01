@@ -94,17 +94,17 @@ fn update_account(balances: Array<Account>, new_account: Account) -> Array<Accou
 fn main(input: Array<felt252>) -> Array<felt252> {
     let mut input = input.span();
 
-    let (mut balances, index, payloads): (Array<Account>, u32, Array<Array<felt252>>) =
+    let (mut balances, index, blobs): (Array<Account>, u32, Array<Array<felt252>>) =
         Serde::deserialize(
         ref input
     )
         .unwrap();
 
-    let smile_token_payload = payloads.at(index);
+    let smile_token_blob = blobs.at(index);
 
     /////// APPLICATION PART ///////
-    let mut smile_token_payload_span = smile_token_payload.span();
-    let event: Event = Serde::deserialize(ref smile_token_payload_span).unwrap();
+    let mut smile_token_blob_span = smile_token_blob.span();
+    let event: Event = Serde::deserialize(ref smile_token_blob_span).unwrap();
     // Initial state compute
     let initial_state = compute_state_pedersen_hash(@balances);
 
@@ -144,9 +144,9 @@ fn main(input: Array<felt252>) -> Array<felt252> {
         event.to.clone(),
         0,
         index,
-        payloads.clone(),
+        blobs.clone(),
         success,
-        smile_token_payload.clone()
+        smile_token_blob.clone()
     )
 }
 
@@ -160,7 +160,7 @@ struct HyleOutput {
     identity: ByteArray,
     tx_hash: felt252,
     index: u32,
-    payloads: Array<Array<felt252>>,
+    blobs: Array<Array<felt252>>,
     success: bool,
     program_outputs: Array<felt252>
 }
@@ -196,11 +196,11 @@ fn processHyleOutput(
     identity: ByteArray,
     tx_hash: felt252,
     index: u32,
-    payloads: Array<Array<felt252>>,
+    blobs: Array<Array<felt252>>,
     success: bool,
     program_output: Array<felt252>
 ) -> Array<felt252> {
-    // Hashing payload
+    // Hashing blob
 
     // HyleOutput
     let hyle_output = HyleOutput {
@@ -210,7 +210,7 @@ fn processHyleOutput(
         identity: identity,
         tx_hash: tx_hash,
         index: index,
-        payloads: payloads,
+        blobs: blobs,
         success: success,
         program_outputs: program_output,
     };
@@ -236,7 +236,7 @@ mod tests {
             422827352430,
             5,
             2,
-            7, // payload
+            7, // blob
             0, // from
             1667657574,
             4,
@@ -260,7 +260,7 @@ mod tests {
             143880692283855892562876867187038471707818953437745,
             21,
             1,
-            7, // payload
+            7, // blob
             0, // from
             112568767309172,
             6,
@@ -279,7 +279,7 @@ mod tests {
                 155498244330488045306850287589664177200672003224113,
                 21,
                 0, // tx_hash
-                3548605693767248747217834656266941711631630347258916905240365336130726092944, // payload_hash
+                3548605693767248747217834656266941711631630347258916905240365336130726092944, // blob_hash
                 1,
                 7, // program_output
                 0,

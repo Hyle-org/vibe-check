@@ -1,4 +1,4 @@
-payloads = [
+blobs = [
     3,
     470,
     37,
@@ -2809,6 +2809,6 @@ identity_len = 56
 identity = "3f368bf90c71946fc7b0cde9161ace42985d235f.ecdsa_secp256r1"
 tx_hash_len = 0
 tx_hash = []
-payloads_len = 2785
+blobs_len = 2785
 index = 0
 success = 1
