@@ -18,10 +18,10 @@ fn main(
     tx_hash: pub [u8; 0],
     index: pub u32,
     blobs_len: pub u32,
-    blob: pub [Field; 2800],
+    blobs: pub [Field; 2800],
     success: pub bool
 ) {
-    let webauthn_blob = parse_cairo_blobs(index, blob);
+    let webauthn_blob = parse_cairo_blobs(index, blobs);
     let client_data_json_hash = prefix_sha256_hash(
         webauthn_blob.client_data_json_len,
         webauthn_blob.client_data_json
@@ -53,6 +53,7 @@ fn main(
     assert(next_state_len == 4);
     assert(initial_state == [0; 4]);
     assert(next_state == [0; 4]);
+    assert(blobs_len <= 2800);
 }
 
 #[test]
@@ -70,7 +71,7 @@ fn test_webauthn_verification_from_vibe_checker_134() {
     let index = 0;
     let blobs_len = 2800;
 
-    let blob: [Field; 2800] = [
+    let blobs: [Field; 2800] = [
         3,
         470,
         37,// authenticator_data
@@ -107,7 +108,7 @@ fn test_webauthn_verification_from_vibe_checker_134() {
         tx_hash,
         index,
         blobs_len,
-        blob,
+        blobs,
         success
     );
 }
@@ -127,7 +128,7 @@ fn test_webauthn_verification_from_vibe_checker_243() {
     let index = 0;
     let blobs_len = 2800;
 
-    let blob: [Field; 2800] = [
+    let blobs: [Field; 2800] = [
         3,
         470,
         37,// authenticator_data
@@ -164,7 +165,7 @@ fn test_webauthn_verification_from_vibe_checker_243() {
         tx_hash,
         index,
         blobs_len,
-        blob,
+        blobs,
         success
     );
 }
@@ -184,7 +185,7 @@ fn test_webauthn_verification_from_vibe_checker_243_bis() {
     let index = 0;
     let blobs_len = 2800;
 
-    let blob: [Field; 2800] = [
+    let blobs: [Field; 2800] = [
         3,
         470,
         37,// authenticator_data
@@ -221,7 +222,7 @@ fn test_webauthn_verification_from_vibe_checker_243_bis() {
         tx_hash,
         index,
         blobs_len,
-        blob,
+        blobs,
         success
     );
 }
