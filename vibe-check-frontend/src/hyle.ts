@@ -1,4 +1,4 @@
-import { checkContractExists, registerContract, base64ToUint8Array, broadcastBlobTx } from "hyle-js";
+import { checkContractExists, registerContract, base64ToUint8Array, broadcastBlobTx, BlobTx } from "hyle-js";
 import { hashBalance } from "./smart_contracts/cairo/CairoHash.ts";
 import { network } from "./network.ts";
 import {
@@ -8,7 +8,6 @@ import {
     computeWebAuthnBlob,
     computeSmileBlob,
     computeSmileTokenBlob,
-    BlobTx,
 } from "./smart_contracts/SmartContract.ts";
 
 export async function broadcastVibeCheckBlob(
@@ -16,25 +15,25 @@ export async function broadcastVibeCheckBlob(
     webAuthnValues: ECDSABlobArgs,
     smileArgs: CairoSmileBlobArgs,
     smileTokenArgs: CairoSmileTokenBlobArgs,
-): Promise<[BlobTx, string]> {
+): Promise<string> {
     let blobTx: BlobTx = {
         identity: identity,
         blobs: [
             {
                 contractName: "ecdsa_secp256r1",
-                data: computeWebAuthnBlob(webAuthnValues),
+                data: Array.from(new TextEncoder().encode(computeWebAuthnBlob(webAuthnValues))),
             },
             {
                 contractName: "smile",
-                data: computeSmileBlob(smileArgs),
+                data: Array.from(new TextEncoder().encode(computeSmileBlob(smileArgs))),
             },
             {
                 contractName: "smile_token",
-                data: computeSmileTokenBlob(smileTokenArgs),
+                data: Array.from(new TextEncoder().encode(computeSmileTokenBlob(smileTokenArgs))),
             },
         ]
     }
-    return [blobTx, await broadcastBlobTx(network, blobTx.identity, blobTx.blobs)];
+    return await broadcastBlobTx(network, blobTx);
 }
 
 export async function ensureContractsRegistered() {

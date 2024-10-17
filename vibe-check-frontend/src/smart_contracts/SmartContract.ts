@@ -1,4 +1,4 @@
-import { serByteArray, deserByteArray, uint8ArrayToBase64 } from "hyle-js";
+import { serByteArray, deserByteArray, uint8ArrayToBase64, BlobTxInfo } from "hyle-js";
 
 export type CairoSmileTokenArgs = {
     balances: { name: string; amount: number }[];
@@ -35,75 +35,11 @@ export type ECDSABlobArgs = {
     pub_key_y: number[];
 };
 
-export type BlobTx = {
-    identity: string,
-    blobs: {contractName: string, data: string}[]
-}
-
-// export function parseECDSABlob(txHash: string, identity: string, data?: Uint8Array) {
-//     if (!data) return undefined;
-
-//     let challenge = [...Uint8Array.from("0123456789abcdef0123456789abcdef", c => c.charCodeAt(0))];
-//     // TODO: challenge needs to be related to txHash
-//     // let challenge = txHash;
-
-//     const parsed = new TextDecoder().decode(data);
-//     let felts = parsed.slice(1, -1).split(" ");
-//     const _blobsize = parseInt(felts.shift() as string);
-    
-//     // authenticator_data
-//     const authenticatorDataLen = parseInt(felts.shift() as string);
-//     let authenticatorData = []
-//     for (let i = 0; i < authenticatorDataLen; i++) {
-//         authenticatorData.push(parseInt(felts.shift() as string));
-//     }
-    
-//     // client_data_json_len
-//     let clientDataJsonLen = parseInt(felts.shift() as string);
-
-//     // client_data_json
-//     const _clientDataJsonGenericLen = parseInt(felts.shift() as string);
-//     let clientDataJson = []
-//     for (let i = 0; i < _clientDataJsonGenericLen; i++) {
-//         clientDataJson.push(parseInt(felts.shift() as string));
-//     }
-
-//     // signature
-//     const signatureLen = parseInt(felts.shift() as string);
-//     let signature = []
-//     for (let i = 0; i < signatureLen; i++) {
-//         signature.push(parseInt(felts.shift() as string));
-//     }    
-    
-//     // pub_key_x
-//     const pubKeyXLen = parseInt(felts.shift() as string);
-//     let pubKeyX = []
-//     for (let i = 0; i < pubKeyXLen; i++) {
-//         pubKeyX.push(parseInt(felts.shift() as string));
-//     }    
-    
-//     // pub_key_y
-//     const pubKeyYLen = parseInt(felts.shift() as string);
-//     let pubKeyY = []
-//     for (let i = 0; i < pubKeyYLen; i++) {
-//         pubKeyY.push(parseInt(felts.shift() as string));
-//     }
-  
-//     return {
-//         authenticator_data: authenticatorData,
-//         client_data_json_len: clientDataJsonLen,
-//         client_data_json: clientDataJson,
-//         signature: signature,
-//         pub_key_x: pubKeyX,
-//         pub_key_y: pubKeyY,
-//         identity: identity,
-//         challenge: challenge,
-//     } as ECDSAArgs;
-// }
-
-export function parseSmileTokenBlob(data?: Uint8Array) {
-    if (!data) return undefined;
-    const parsed = new TextDecoder().decode(data);
+export function parseSmileTokenBlob(blobTxInfo: BlobTxInfo) {
+    let blob = blobTxInfo.blobs.filter((x) => x.contractName === "smile_token");
+    if (!blob || blob.length == 0) return undefined;
+    let data = blob[0].data;
+    const parsed = new TextDecoder().decode(new Uint8Array(data));
     const felts = parsed.slice(1, -1).split(" ");
     const _blobSize = parseInt(felts.shift() as string);
     const fromSize = parseInt(felts[0]);
@@ -118,9 +54,11 @@ export function parseSmileTokenBlob(data?: Uint8Array) {
     }
 }
 
-export function parseMLBlob(data?: Uint8Array) {
-    if (!data) return [];
-    const asb64 = uint8ArrayToBase64(data);
+export function parseMLBlob(blobTxInfo: BlobTxInfo) {
+    let blob = blobTxInfo.blobs.filter((x) => x.contractName === "smile");
+    if (!blob || blob.length == 0) return [];
+    let data = blob[0].data
+    const asb64 = uint8ArrayToBase64(new Uint8Array(data));
     // Parse base64 into ascii
     const ascii = atob(asb64);
     // At this point it's a list of numbers separated by spaces

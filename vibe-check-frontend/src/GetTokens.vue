@@ -18,12 +18,7 @@ import LeaderBoard from "./LeaderBoard.vue";
 import Socials from "./components/Socials.vue";
 
 import { HyleouApi } from "./api/hyleou";
-import type {
-    CairoSmileTokenBlobArgs,
-    ECDSABlobArgs,
-    CairoSmileBlobArgs,
-    BlobTx,
-} from "@/smart_contracts/SmartContract";
+import type { CairoSmileTokenBlobArgs, ECDSABlobArgs, CairoSmileBlobArgs } from "@/smart_contracts/SmartContract";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
 
 // These are references to HTML elements
@@ -49,7 +44,7 @@ const error = ref<string | null>(null);
 const identityRef = ref("");
 const txHash = ref<string | null>(null);
 
-const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, computeBlobsAndProve } = useProving(
+const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, proveFromBlobs } = useProving(
     status as any,
     error,
     txHash,
@@ -59,7 +54,6 @@ let webAuthnBlobArgs: ECDSABlobArgs;
 let smileBlobArgs: CairoSmileBlobArgs;
 let smileTokenBlobArgs: CairoSmileTokenBlobArgs;
 let blobTxHash: string;
-let blobTx: BlobTx;
 
 // Match screen to status
 watchEffect(() => {
@@ -178,7 +172,7 @@ const activateCamera = async () => {
                 context.scale(-1, 1);
                 context.fillStyle = "blue";
                 context.font = "bold 16px Arial";
-                context.fillText(score, -canvas.width * 0.1, canvas.height * 0.1);
+                context.fillText(String(score), -canvas.width * 0.1, canvas.height * 0.1);
             }
         }, 1000);
     } catch (e) {
@@ -312,7 +306,7 @@ const getSmileProbability = async (image: ImageBitmap, x: number, y: number, wid
     // We'd be better off running the ONNX directly in wasm via OnnxRuntime or something like that.
     const tensorGrayScale = new ort.Tensor("float32", grayScale, [1, 48 * 48]);
     const modelResponse = await onnxSessionRef.value?.run({ input: tensorGrayScale });
-    let smileProbability = modelResponse?.probabilities.cpuData[1];
+    let smileProbability = Number(modelResponse?.probabilities.data[1]);
 
     return smileProbability;
 };
@@ -367,12 +361,7 @@ const signAndSendBlobTx = async () => {
         };
 
         // Create and send the transaction
-        [blobTx, blobTxHash] = await broadcastVibeCheckBlob(
-            identity,
-            webAuthnBlobArgs,
-            smileBlobArgs,
-            smileTokenBlobArgs,
-        );
+        blobTxHash = await broadcastVibeCheckBlob(identity, webAuthnBlobArgs, smileBlobArgs, smileTokenBlobArgs);
         console.log("BlobTxHash: ", blobTxHash);
 
         // Switch to waiter view
@@ -398,7 +387,14 @@ const signAndSendBlobTx = async () => {
 };
 
 const proveRemotely = async () => {
-    await computeBlobsAndProve(blobTx, txHash.value!);
+    let identity: string;
+    if (identityRef.value) {
+        identity = identityRef.value;
+    } else {
+        identityRef.value = getWebAuthnIdentity();
+        identity = identityRef.value;
+    }
+    await proveFromBlobs(blobTxHash, identity, webAuthnBlobArgs, smileBlobArgs, smileTokenBlobArgs);
 };
 
 const vTriggerScroll = {

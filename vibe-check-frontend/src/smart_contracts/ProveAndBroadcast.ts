@@ -1,15 +1,14 @@
 import { ref } from "vue";
 import {
+    BlobTxInfo,
     broadcastProofTx,
     checkTxesStatus,
-    MsgPublishPayloads,
-    uint8ArrayToBase64,
 } from "hyle-js";
 
 import { proveSmile, proveSmileTokenTransfer } from "@/smart_contracts/cairo/prover";
 import { proveECDSA } from "@/smart_contracts/noir/prover";
-import { BlobTx, CairoSmileArgs, CairoSmileTokenArgs, computeBlob, ECDSAArgs } from "./SmartContract";
-import { getBalances, getBalancesAtTx } from "./SmileTokenIndexer";
+import { CairoSmileArgs, CairoSmileBlobArgs, CairoSmileTokenArgs, CairoSmileTokenBlobArgs, computeBlob, computeSmileBlob, computeSmileTokenBlob, computeWebAuthnBlob, ECDSAArgs, ECDSABlobArgs } from "./SmartContract";
+import { getBalancesAtTx } from "./SmileTokenIndexer";
 import { network } from "@/network";
 
 export function useProving(
@@ -20,15 +19,6 @@ export function useProving(
     const ecdsaPromiseDone = ref(false);
     const smilePromiseDone = ref(false);
     const smileTokenPromiseDone = ref(false);
-
-    function getBlobs(parsedTransaction: MsgPublishPayloads | undefined, contract: string) {
-        if (!parsedTransaction) return undefined;
-        return parsedTransaction.payloads.find((x) => x.contractName === contract)?.data;
-    }
-
-    function getIdentity(parsedTransaction: MsgPublishPayloads | undefined) {
-        return parsedTransaction?.identity ?? "";
-    }
 
     const proveAndSendProofsTx = async (
         txHash: string,
@@ -56,9 +46,9 @@ export function useProving(
                 txHash,
                 2,
                 "smile_token",
-                uint8ArrayToBase64(await smileTokenPromise),
+                await smileTokenPromise,
             );
-            const smileProofTxHash = await broadcastProofTx(network, txHash, 1, "smile", uint8ArrayToBase64(await smilePromise));
+            const smileProofTxHash = await broadcastProofTx(network, txHash, 1, "smile", await smilePromise);
             const ecdsaProofTxHash = await broadcastProofTx(
                 network,
                 txHash,
@@ -71,6 +61,9 @@ export function useProving(
             console.log("smileTokenProofTx: ", smileTokenProofTxHash);
             // Switch to waiter view
             status.value = "checking_tx";
+
+            // Wait a bit and assume TX will be processed
+            await new Promise((resolve) => setTimeout(resolve, 4000));
 
             // Check the status of the TX
             const txStatus = await checkTxesStatus(
@@ -95,22 +88,16 @@ export function useProving(
         }
     };
 
-    const computeBlobsAndProve = async (blobTx: BlobTx, txHash: string) => {
-        // getting each blob to process the main blob
-        let blobWebAuthn = blobTx.blobs[0].data;
-        let blobSmile = blobTx.blobs[1].data;
-        let blobSmileToken = blobTx.blobs[2].data;
 
-        let gatheredBlobs = computeBlob(blobWebAuthn, blobSmile, blobSmileToken);
-
+    const prepareArgsFromBlobs = (identity: string, gatheredBlobs: any, txHash: string) => {
         // for webauthn
         const ecdsaArgs: ECDSAArgs = {
-            identity: blobTx.identity,
+            identity: identity,
             blobs: gatheredBlobs,
         };
         // for smile
         const smileArgs: CairoSmileArgs = {
-            identity: blobTx.identity,
+            identity: identity,
             blobs: gatheredBlobs,
         };
         // for smileToken
@@ -119,7 +106,34 @@ export function useProving(
             blobs: gatheredBlobs,
         };
 
+        return { ecdsaArgs, smileArgs, smileTokenArgs };
+    };
+
+    const proveFromBlobs = async (txHash: string, identity: string, webAuthnBlobArgs: ECDSABlobArgs, smileBlobArgs: CairoSmileBlobArgs, smileTokenBlobArgs: CairoSmileTokenBlobArgs) => {
+        let webAuthnBlob = computeWebAuthnBlob(webAuthnBlobArgs);
+        let smileBlob = computeSmileBlob(smileBlobArgs);
+        let smileTokenBlob = computeSmileTokenBlob(smileTokenBlobArgs);
+
+        let gatheredBlobs = computeBlob(webAuthnBlob, smileBlob, smileTokenBlob);
+
+        const { ecdsaArgs, smileArgs, smileTokenArgs } = prepareArgsFromBlobs(identity, gatheredBlobs, txHash);
+
         await proveAndSendProofsTx(txHash, ecdsaArgs, smileArgs, smileTokenArgs);
+    };
+
+    const proveFromBlobTx = async (blobTx: BlobTxInfo) => {
+        let { blobWebAuthn, blobSmile, blobSmileToken } = blobTx.blobs.reduce((acc: { blobWebAuthn: any, blobSmile: any, blobSmileToken: any }, blob) => {
+            if (blob.contractName === "ecdsa_secp256r1") acc.blobWebAuthn = new TextDecoder().decode(new Uint8Array(blob.data));
+            if (blob.contractName === "smile") acc.blobSmile = new TextDecoder().decode(new Uint8Array(blob.data));
+            if (blob.contractName === "smile_token") acc.blobSmileToken = new TextDecoder().decode(new Uint8Array(blob.data));
+            return acc;
+        }, { blobWebAuthn: null, blobSmile: null, blobSmileToken: null });
+
+        let gatheredBlobs = computeBlob(blobWebAuthn, blobSmile, blobSmileToken);
+
+        const { ecdsaArgs, smileArgs, smileTokenArgs } = prepareArgsFromBlobs(blobTx.identity, gatheredBlobs, blobTx.txHash);
+
+        await proveAndSendProofsTx(blobTx.txHash, ecdsaArgs, smileArgs, smileTokenArgs);
     };
 
     return {
@@ -129,7 +143,7 @@ export function useProving(
         status,
         error,
         sentTxHash,
-        computeBlobsAndProve,
-        getBlobs,
+        proveFromBlobs,
+        proveFromBlobTx
     };
 }

@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import Socials from "./components/Socials.vue";
 import { computed } from "vue";
-import { allTransactions } from "@/smart_contracts/SmileTokenIndexer";
+import { allSmileTokenBlobTransactions } from "@/smart_contracts/SmileTokenIndexer";
 import { parseSmileTokenBlob, formatSmileTokenBlob, parseMLBlob } from "@/smart_contracts/SmartContract";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
-import { getParsedTx, MsgPublishPayloads } from "hyle-js";
 
 const parsedTransactions = computed(() => {
-    const ret = {} as Record<string, MsgPublishPayloads>;
-    for (const tx of allTransactions.value) {
-        if (tx.type) {
-            ret[tx.hash] = getParsedTx(tx);
-            console.log(tx);
+    const ret = {} as Record<string, any>;
+    for (const tx of allSmileTokenBlobTransactions.value) {
+        if (tx.transactionStatus === "Sequenced") {
+            ret[tx.txHash] = tx;
         }
     }
     return ret;
@@ -39,8 +37,7 @@ function createMlImage(numbers: string[]) {
     return canvas.toDataURL();
 }
 
-const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, status, error, computeBlobsAndProve, getBlob } =
-    useProving();
+const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, status, error, proveFromBlobTx } = useProving();
 </script>
 
 <template>
@@ -54,18 +51,15 @@ const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, status, error
             <p>Some of these transactions may not be proven yet, feel free to do it now !</p>
         </div>
         <div class="flex flex-col gap-2 mb-8">
-            <div class="tx" v-for="tx in allTransactions" :key="tx.hash">
+            <div class="tx" v-for="tx in allSmileTokenBlobTransactions" :key="tx.txHash">
                 <div class="w-16 px-4 py-1 border-r-2">
-                    <p>{{ tx.height }}</p>
-                </div>
-                <div class="w-16 px-4 py-1 border-r-2">
-                    <template v-if="tx.status === 'sequenced'">
+                    <template v-if="tx.transactionStatus === 'Sequenced'">
                         <p>⏳</p>
                     </template>
-                    <template v-else-if="tx.status === 'failure'">
+                    <template v-else-if="tx.transactionStatus === 'Failure'">
                         <p>❌</p>
                     </template>
-                    <template v-else-if="tx.status === 'success'">
+                    <template v-else-if="tx.transactionStatus === 'Success'">
                         <p>✅</p>
                     </template>
                     <template v-else>
@@ -73,26 +67,18 @@ const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, status, error
                     </template>
                 </div>
                 <div class="flex-1 px-4 py-1">
-                    <img
-                        v-if="tx.type"
-                        class="min-w-12"
-                        :src="createMlImage(parseMLBlob(getBlob(parsedTransactions[tx.hash], 'smile')))"
-                    />
+                    <img class="min-w-12" :src="createMlImage(parseMLBlob(parsedTransactions[tx.txHash]))" />
                     <div class="ml-4 inline-flex flex-col flex-1">
                         <p>
-                            Transaction hash: <span class="font-mono text-sm">0x{{ tx.hash }}</span>
+                            Transaction hash: <span class="font-mono text-sm">0x{{ tx.txHash }}</span>
                         </p>
                         <p>
-                            {{
-                                formatSmileTokenBlob(
-                                    parseSmileTokenBlob(getBlob(parsedTransactions[tx.hash], "smile_token")),
-                                )
-                            }}
+                            {{ formatSmileTokenBlob(parseSmileTokenBlob(parsedTransactions[tx.txHash])) }}
                         </p>
                     </div>
                 </div>
-                <div class="w-24 px-4 border-l-2" v-if="tx.status === 'sequenced'">
-                    <button @click="computeBlobsAndProve(parsedTransactions[tx.hash], tx.hash)">Prove</button>
+                <div class="w-24 px-4 border-l-2" v-if="tx.transactionStatus === 'Sequenced'">
+                    <button @click="proveFromBlobTx(parsedTransactions[tx.txHash])">Prove</button>
                 </div>
             </div>
         </div>

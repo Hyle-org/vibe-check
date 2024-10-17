@@ -44,22 +44,21 @@ export const proveECDSA = async (args: ECDSAArgs) => {
     // const proof = await backend.generateProof(witness);
     
     // Delegating proving to external service for performance
-    // const requestOptions: RequestInit = {
-    //     method: "POST",
-    //     headers: {
-    //         "Content-Type": "application/octet-stream",
-    //     },
-    //     body: Buffer.from(witness),
-    // };
+    const requestOptions: RequestInit = {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/octet-stream",
+        },
+        body: Buffer.from(witness),
+    };
 
-    // let proveResponse = await fetch(getNoirProverUrl() + "/prove-ecdsa", requestOptions);
+    let proveResponse = await fetch(getNoirProverUrl() + "/prove-ecdsa", requestOptions);
 
-    // if (!proveResponse.ok) {
-    //     throw new Error(`Failed to prove noir. Server responded with status ${proveResponse.status}`);
-    // }
+    if (!proveResponse.ok) {
+        throw new Error(`Failed to prove noir. Server responded with status ${proveResponse.status}`);
+    }
     
-    // const proof = new Uint8Array(await proveResponse.arrayBuffer());
+    const proof = new Uint8Array(await proveResponse.arrayBuffer());
 
-    // return proof;
-    return "proof";
+    return proof;
 };
