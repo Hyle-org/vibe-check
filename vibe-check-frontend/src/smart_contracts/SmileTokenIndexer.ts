@@ -25,4 +25,4 @@ export const txData = reactive(new TransactionsStore(network));
 const state = reactive(new Erc20Parser("smile_token",  {"faucet": 1000000}));
 
 txData.loadBlobTxsLinkedWithContract("smile_token");
-txData.addListerOnContract("smile_token");
+txData.addListenerOnContract("smile_token");
