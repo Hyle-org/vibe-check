@@ -18,7 +18,7 @@
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.5",
     "face-api.js": "^0.22.2",
-    "hyle-js": "file:../../hyle-js",
+    "hyle-js": "github:Hyle-org/hyle-js",
     "jszip": "^3.10.1",
     "mobile-device-detect": "^0.4.3",
     "onnxruntime-web": "^1.19.2",

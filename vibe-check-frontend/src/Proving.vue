@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import Socials from "./components/Socials.vue";
 import { computed } from "vue";
-import { allSmileTokenBlobTransactions } from "@/smart_contracts/SmileTokenIndexer";
+import { txData } from "@/smart_contracts/SmileTokenIndexer";
 import { parseSmileTokenBlob, formatSmileTokenBlob, parseMLBlob } from "@/smart_contracts/SmartContract";
 import { useProving } from "./smart_contracts/ProveAndBroadcast";
 
 const parsedTransactions = computed(() => {
     const ret = {} as Record<string, any>;
-    for (const tx of allSmileTokenBlobTransactions.value) {
+    for (const tx of txData.blobTransactions) {
         if (tx.transactionStatus === "Sequenced") {
             ret[tx.txHash] = tx;
         }
@@ -51,7 +51,7 @@ const { ecdsaPromiseDone, smilePromiseDone, smileTokenPromiseDone, status, error
             <p>Some of these transactions may not be proven yet, feel free to do it now !</p>
         </div>
         <div class="flex flex-col gap-2 mb-8">
-            <div class="tx" v-for="tx in allSmileTokenBlobTransactions" :key="tx.txHash">
+            <div class="tx" v-for="tx in txData.blobTransactions" :key="tx.txHash">
                 <div class="w-16 px-4 py-1 border-r-2">
                     <template v-if="tx.transactionStatus === 'Sequenced'">
                         <p>⏳</p>
