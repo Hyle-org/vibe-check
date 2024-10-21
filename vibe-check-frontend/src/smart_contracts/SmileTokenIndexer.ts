@@ -1,58 +1,39 @@
-import { computed, reactive, ref, watchEffect } from "vue";
+import { reactive, ref } from "vue";
 import { Erc20Parser, TransactionsStore } from "hyle-js";
 import { network } from "../network";
+import { watchEffect } from "vue";
 
 export function getBalances(): { name: string; amount: number }[] {
     return Object.entries(state.value.balancesSettled).map(([name, amount]) => ({ name, amount }));
 }
 
 export function getBalancesAtTx(txHash: string) {
-    const lastIndex = allTransactions.value.findIndex((tx) => tx.hash === txHash);
+    const contract = new Erc20Parser("smile_token", {"faucet": 1000000});
+
+    const lastIndex = txData.blobTransactions.findIndex((tx) => tx.txHash === txHash);
     if (lastIndex === -1) return [];
-    const txs = allTransactions.value
-        .slice(0, lastIndex)
-        .filter((tx) => tx.status === "success" || tx.status === "sequenced");
-    const contract = new Erc20Parser("smile_token");
-    contract.balancesPending["faucet"] = 1000000;
+
+    const txs = txData.blobTransactions
+        .slice(0, lastIndex + 1)
+        .filter((tx) => tx.transactionStatus === "Success" || tx.transactionStatus === "Sequenced");
     txs.forEach((tx) => {
-        if (!tx.type) return;
         contract.consumeTx(tx);
     });
     return Object.entries(contract.balancesPending).map(([name, amount]) => ({ name, amount }));
 }
 
-export type BalanceChange = {
-    from: string;
-    to: string;
-    value: number;
-};
+export const txData = reactive(new TransactionsStore(network));
+const state = ref(new Erc20Parser("smile_token", {"faucet": 1000000}));
 
-const txData = reactive(new TransactionsStore(network));
-const state = ref(new Erc20Parser("smile_token"));
-
-export const allTransactions = computed(() => {
-    const txs = Object.values(txData.transactionData).filter((tx) => tx.contracts?.includes("smile_token"));
-    return txs.sort((a, b) => a.height - b.height + a.index - b.index);
-});
 
 watchEffect(() => {
-    allTransactions.value.forEach((tx) => {
-        if (!tx.type) {
-            txData.loadTransactionData(tx.hash);
-            return;
+    state.value = reactive(new Erc20Parser("smile_token", {"faucet": 1000000}));
+    txData.blobTransactions.forEach((tx) => {
+        if (tx.transactionStatus === "Success" || tx.transactionStatus === "Sequenced") {
+            state.value.consumeTx(tx);
         }
     });
 });
 
-watchEffect(() => {
-    state.value = reactive(new Erc20Parser("smile_token"));
-    state.value.balancesSettled["faucet"] = 1000000;
-    const transactions = allTransactions.value.filter((tx) => tx.status !== "sequenced");
-    transactions.forEach((tx) => {
-        if (!tx.type) return;
-        state.value.consumeTx(tx);
-        state.value.settleTx(tx.hash, tx.status === "success");
-    });
-});
-
-txData.loadContractTxs("smile_token");
+txData.loadBlobTxsLinkedWithContract("smile_token");
+txData.addListenerOnContract("smile_token");

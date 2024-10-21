@@ -21,7 +21,7 @@ var setupSmile: Promise<CairoRunOutputs>;
 onmessage = function (e) {
     if (e.data[0] === "run-smile-token") {
         console.log("ERC20 Worker started");
-        // TODO: changer les arguments envoyé à run smile pour ne laisser que id et computedPayload
+        // TODO: change argument to only keep id and computedBlob
         setupSmileToken = runSmileToken(computeSmileTokenArgs(e.data[1]));
     } else if (e.data[0] === "prove-smile-token") {
         console.log("Proving ERC20...");
