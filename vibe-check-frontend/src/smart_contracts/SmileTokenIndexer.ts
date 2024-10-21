@@ -1,6 +1,7 @@
 import { reactive } from "vue";
 import { Erc20Parser, TransactionsStore } from "hyle-js";
 import { network } from "../network";
+import { watchEffect } from "vue";
 
 export function getBalances(): { name: string; amount: number }[] {
     return Object.entries(state.balancesSettled).map(([name, amount]) => ({ name, amount }));
@@ -22,7 +23,17 @@ export function getBalancesAtTx(txHash: string) {
 }
 
 export const txData = reactive(new TransactionsStore(network));
-const state = reactive(new Erc20Parser("smile_token",  {"faucet": 1000000}));
+let state = reactive(new Erc20Parser("smile_token", {"faucet": 1000000}));
+
+
+watchEffect(() => {
+    state = new Erc20Parser("smile_token", {"faucet": 1000000});
+    txData.blobTransactions.forEach((tx) => {
+        if (tx.transactionStatus === "Success" || tx.transactionStatus === "Sequenced") {
+            state.consumeTx(tx);
+        }
+    });
+});
 
 txData.loadBlobTxsLinkedWithContract("smile_token");
 txData.addListenerOnContract("smile_token");
