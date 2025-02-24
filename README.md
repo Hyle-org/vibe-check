@@ -28,7 +28,7 @@ The step-by-step process:
     2. Since Hylé’s state is checkpointed on different networks, I could get that token on any bridged network like Starknet or even Ethereum.
 
 
-This repo contains all you need to undertand how to bootstrap your first zkApp with _Hylé_. More docs about VibeCheck [here](https://docs.hyle.eu/developers/examples/vibe-check/)
+This repo contains all you need to undertand how to bootstrap your first zkApp with _Hylé_. More docs about VibeCheck [here](https://blog.hyle.eu/introducing-vibe-check/)
 
 ----------------
 
